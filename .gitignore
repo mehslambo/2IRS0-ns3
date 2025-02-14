@@ -1,0 +1,12 @@
+
+.waf-1.8.19-b1fc8f7baef51bd2db4c2971909a568d/
+
+build/
+
+waf-tools/
+
+.lock-waf_linux2_build
+
+utils.pyc
+
+wutils.pyc
