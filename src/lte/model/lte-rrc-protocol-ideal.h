@@ -72,8 +72,11 @@ private:
   void DoSendRrcConnectionReestablishmentRequest (LteRrcSap::RrcConnectionReestablishmentRequest msg);
   void DoSendRrcConnectionReestablishmentComplete (LteRrcSap::RrcConnectionReestablishmentComplete msg);
   void DoSendMeasurementReport (LteRrcSap::MeasurementReport msg);
+  //for nb-iot
+  void DoSendCE(uint64_t m_imsi, uint16_t m_rnti, int m_judge_ce_level);
 
   void SetEnbRrcSapProvider ();
+  
 
   Ptr<LteUeRrc> m_rrc;
   uint16_t m_rnti;

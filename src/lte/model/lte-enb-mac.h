@@ -36,13 +36,18 @@
 #include <ns3/packet.h>
 #include <ns3/packet-burst.h>
 
+#include <ns3/lte-enb-rrc.h>
+
 namespace ns3 {
 
 class DlCqiLteControlMessage;
 class UlCqiLteControlMessage;
 class PdcchMapLteControlMessage;
+class LteEnbRrc;
 
 typedef std::vector <std::vector < Ptr<PacketBurst> > > DlHarqProcessesBuffer_t;
+
+//for nb-iot
 
 /**
  * This class implements the MAC layer of the eNodeB device
@@ -55,9 +60,57 @@ class LteEnbMac :   public Object
   friend class EnbMacMemberFfMacCschedSapUser;
   friend class EnbMacMemberLteEnbPhySapUser;
 
+//for nb-iot
+public:
+  void SIB1Indication (uint32_t m_nrFrames);
+  void SendUePara (uint16_t rnti, int rep, int startsf, double offset);
+  void Sendmsg4Info(uint16_t rep, uint16_t startsf, double offset);
+  int DoConfigureRrcDelay(uint16_t rep, uint16_t startsf, double offset);
+  std::vector<int> DoConfigureMsg4Info();
+
+  // for nb-iot scenario
+  void SetChannel (int ch);
+  void SetRepetition (int R);
+  void SetAlpha (int alpha);
+
+private:
+
+// for nb-iot
+// DCI N0 is for UL scheduling
+  struct DCI_N0
+  {
+    bool subcarrier_indication;
+    int Scheduling_delay;
+    int Resource_assignment;
+    int Repetition_number;
+  };
+
+// for nb-iot
+// DCI N1 is for both msg4 and DL scheduling
+  struct DCI_N1
+  {
+    int Scheduling_delay; // for Idelay
+    int Resource_assignment; // for Isf
+    int Repetition_number; // for Irep
+  };
+
+  static bool CCtrigger;
+  static bool SCtrigger;
+  static std::vector<uint16_t> m_rnti;
+  static std::vector<int> m_rep;
+  static std::vector<int> m_startsf; 
+  static std::vector<double> m_offset;
+  static std::vector<DCI_N0> m_dci_n0;
+  static std::vector<DCI_N1> m_dci_n1;
+
+  static std::vector<uint16_t> m_ue;
+  static std::vector<int> m_kb;
+  static std::vector<int> m_k;
+
+  int m_R;
+
 public:
   static TypeId GetTypeId (void);
-
   LteEnbMac (void);
   virtual ~LteEnbMac (void);
   virtual void DoDispose (void);
@@ -150,6 +203,14 @@ public:
      uint8_t mcs, uint16_t tbsSize);
   
 private:
+  //for nb-iot
+  void DoSearchSpace(uint32_t frameNo, uint32_t subframeNo, uint16_t rnti, int R);
+  void DoSearchSpace_msg4(uint32_t frameNo, uint32_t subframeNo, int u, int R);
+  void DoSearchSpace_pre_msg4(uint32_t frameNo, uint32_t subframeNo);
+  void DoPreAllocation();
+
+  DCI_N0 DoConfigureDCI_N0(int CE);
+  DCI_N1 DoConfigureDCI_N1(int CE, bool flag);
 
   /**
   * \brief Receive a DL CQI ideal control message
@@ -179,6 +240,8 @@ private:
   void DoReleaseLc (uint16_t  rnti, uint8_t lcid);
   void DoUeUpdateConfigurationReq (LteEnbCmacSapProvider::UeConfig params);
   LteEnbCmacSapProvider::RachConfig DoGetRachConfig ();
+  //for nb-iot
+  LteEnbCmacSapProvider::NpdcchConfig DoGetNpdcchConfig ();
   LteEnbCmacSapProvider::AllocateNcRaPreambleReturnValue DoAllocateNcRaPreamble (uint16_t rnti);
 
   // forwarded from LteMacSapProvider
@@ -228,7 +291,8 @@ private:
   */
 //   std::map <uint16_t,UlInfoListElement_s> m_ulInfoListElements; 
 
-
+  //for nb-iot
+  LteEnbRrc* m_rrc;
 
   LteMacSapProvider* m_macSapProvider;
   LteEnbCmacSapProvider* m_cmacSapProvider;

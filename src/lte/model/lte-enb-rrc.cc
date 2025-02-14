@@ -41,12 +41,18 @@
 #include <ns3/lte-rlc-am.h>
 #include <ns3/lte-pdcp.h>
 
-
+#include <string>
 
 
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("LteEnbRrc");
+
+//for nb-iot
+// msg4 scheduling information for both lte-enb-rrc and uemanager
+static uint16_t msg4_rep;
+static uint16_t msg4_startsf;
+static double msg4_offset;
 
 ///////////////////////////////////////////
 // CMAC SAP forwarder
@@ -796,6 +802,8 @@ UeManager::CompleteSetupUe (LteEnbRrcSapProvider::CompleteSetupUeParameters para
   m_srb1->m_pdcp->SetLtePdcpSapUser (params.srb1SapUser);
 }
 
+
+
 void
 UeManager::RecvRrcConnectionRequest (LteRrcSap::RrcConnectionRequest msg)
 {
@@ -815,10 +823,45 @@ UeManager::RecvRrcConnectionRequest (LteRrcSap::RrcConnectionRequest msg)
               }
 
             // send RRC CONNECTION SETUP to UE
+            int rrc_delay;
+            std::vector<int> msg4_delay;
             LteRrcSap::RrcConnectionSetup msg2;
             msg2.rrcTransactionIdentifier = GetNewRrcTransactionIdentifier ();
             msg2.radioResourceConfigDedicated = BuildRadioResourceConfigDedicated ();
+
+            //for nb-iot
+            // send unconnected ue information to enb-mac
+            // enb-mac will retrun delay time between recv msg3 and send first
+            // and we need delay 5ms necessarily and k0ms 
+            // enb-mac will retrun msg4 sf and rep (msg4[1] and msg4[2])
+            // and we need send msg4 rep times and each msg4 allocate number of sf subframes
+
+            enb_mac->Sendmsg4Info(msg4_rep, msg4_startsf, msg4_offset);
+            rrc_delay = enb_mac->DoConfigureRrcDelay(msg4_rep, msg4_startsf, msg4_offset);
+            msg4_delay = enb_mac->DoConfigureMsg4Info();
+            msg2.msg4_rep = msg4_delay[2];
+            
+            std::cout << "RNTI: " << m_rnti << " rrc_delay: " << rrc_delay+5+msg4_delay[0] << std::endl;
+
+            // int i = 0;
+            // while(msg4_delay[2]>0)
+            // {
+            //   Simulator::Schedule (MilliSeconds (rrc_delay+5+msg4_delay[0]+i*msg4_delay[1]),
+            //            &LteEnbRrcSapUser::SendRrcConnectionSetup,
+            //            m_rrc->m_rrcSapUser,
+            //            m_rnti,
+            //            msg2);
+            //   i++;
+            //   msg4_delay[2]--;
+            // }  
+
             m_rrc->m_rrcSapUser->SendRrcConnectionSetup (m_rnti, msg2);
+
+            // typedef void (LteEnbRrcSapUser::*pmi)(uint16_t m_rnti, LteRrcSap::RrcConnectionSetup msg2);
+            // pmi sendrrcconnectionsetup = &LteEnbRrcSapUser::SendRrcConnectionSetup;
+            // (m_rrc->m_rrcSapUser->*sendrrcconnectionsetup)(m_rnti, msg2);
+
+            //std::cout << "Contection Resolution Timeout: " << m_rrc->m_connectionSetupTimeoutDuration.GetMilliSeconds() << "ms..." << std::endl;
 
             RecordDataRadioBearersToBeStarted ();
             m_connectionSetupTimeout = Simulator::Schedule (
@@ -1365,14 +1408,15 @@ LteEnbRrc::GetTypeId (void)
                                     PER_BASED,     "PacketErrorRateBased"))
     .AddAttribute ("SystemInformationPeriodicity",
                    "The interval for sending system information (Time value)",
-                   TimeValue (MilliSeconds (80)),
+                   TimeValue (MilliSeconds (64)),//for NB-IoT
                    MakeTimeAccessor (&LteEnbRrc::m_systemInformationPeriodicity),
                    MakeTimeChecker ())
 
     // SRS related attributes
+    //for NB-IoT,original value is 40
     .AddAttribute ("SrsPeriodicity",
                    "The SRS periodicity in milliseconds",
-                   UintegerValue (40),
+                   UintegerValue (320),
                    MakeUintegerAccessor (&LteEnbRrc::SetSrsPeriodicity, 
                                          &LteEnbRrc::GetSrsPeriodicity),
                    MakeUintegerChecker<uint32_t> ())
@@ -1419,6 +1463,7 @@ LteEnbRrc::GetTypeId (void)
                    MakeTimeAccessor (&LteEnbRrc::m_handoverLeavingTimeoutDuration),
                    MakeTimeChecker ())
 
+    //for NB-IoT
     // Cell selection related attribute
     .AddAttribute ("QRxLevMin",
                    "One of information transmitted within the SIB1 message, "
@@ -1429,9 +1474,9 @@ LteEnbRrc::GetTypeId (void)
                    "3GPP TS 36.133. This restriction, however, only applies to "
                    "initial cell selection and EPC-enabled simulation.",
                    TypeId::ATTR_GET | TypeId::ATTR_CONSTRUCT,
-                   IntegerValue (-70),
+                   IntegerValue (-82),
                    MakeIntegerAccessor (&LteEnbRrc::m_qRxLevMin),
-                   MakeIntegerChecker<int8_t> (-70, -22))
+                   MakeIntegerChecker<int8_t> (-82, -22))
 
     // Handover related attributes
     .AddAttribute ("AdmitHandoverRequest",
@@ -1759,8 +1804,13 @@ LteEnbRrc::ConfigureCell (uint8_t ulBandwidth, uint8_t dlBandwidth,
   m_ueMeasConfig.haveSpeedStatePars = false;
 
   // Enabling MIB transmission
+  //for nb-iot 
+  // we set mib pcid here to info sib1
+  // we defalut sib1 periodicty = 4 here
   LteRrcSap::MasterInformationBlock mib;
   mib.dlBandwidth = m_dlBandwidth;
+  mib.schedulinginfosib1_r13.pcid = cellId;
+  mib.schedulinginfosib1_r13.periodicity = 8;
   m_cphySapProvider->SetMasterInformationBlock (mib);
 
   // Enabling SIB1 transmission with default values
@@ -1783,7 +1833,6 @@ LteEnbRrc::ConfigureCell (uint8_t ulBandwidth, uint8_t dlBandwidth,
   m_configured = true;
 
 }
-
 
 void
 LteEnbRrc::SetCellId (uint16_t cellId)
@@ -1891,6 +1940,8 @@ LteEnbRrc::DoRecvRrcConnectionSetupCompleted (uint16_t rnti, LteRrcSap::RrcConne
 {
   NS_LOG_FUNCTION (this << rnti);
   GetUeManager (rnti)->RecvRrcConnectionSetupCompleted (msg);
+  //for nb-iot trace
+  std::cout <<"RNTI: " << rnti << " RRC Connection Setup in " << Simulator::Now().GetSeconds() << "s..." << std::endl;
 }
 
 void
@@ -1919,6 +1970,32 @@ LteEnbRrc::DoRecvMeasurementReport (uint16_t rnti, LteRrcSap::MeasurementReport 
 {
   NS_LOG_FUNCTION (this << rnti);
   GetUeManager (rnti)->RecvMeasurementReport (msg);
+}
+
+//for nb-iot
+// no use this func!!!
+void
+LteEnbRrc::RecvUePara(uint16_t rnti, int rep, int startsf, double offset)
+{
+  NS_LOG_FUNCTION (this);
+  //enb_mac->SendUePara(rnti, rep, startsf, offset);
+}
+
+//for nb-iot
+void
+LteEnbRrc::msg4SchedulingInfo(LteRrcSap::NPRACH_Parameters_NB_r13 np)
+{
+  NS_LOG_FUNCTION (this);
+  msg4_rep = np.npdcch_NumRepetitions_RA_r13;
+  msg4_startsf = np.npdcch_StartSF_CSS_RA_r13;
+  msg4_offset = np.npdcch_Offset_RA_r13;
+}
+
+//for nb-iot
+void
+LteEnbRrc::SendRrcConnectionSetup_NB()
+{
+  NS_LOG_FUNCTION (this);
 }
 
 void 
@@ -2484,7 +2561,7 @@ LteEnbRrc::GetLogicalChannelPriority (EpsBearer bearer)
 void
 LteEnbRrc::SendSystemInformation ()
 {
-  // NS_LOG_FUNCTION (this);
+  NS_LOG_FUNCTION (this);
 
   /*
    * For simplicity, we use the same periodicity for all SIBs. Note that in real
@@ -2500,9 +2577,58 @@ LteEnbRrc::SendSystemInformation ()
   LteEnbCmacSapProvider::RachConfig rc = m_cmacSapProvider->GetRachConfig ();
   LteRrcSap::RachConfigCommon rachConfigCommon;
   rachConfigCommon.preambleInfo.numberOfRaPreambles = rc.numberOfRaPreambles;
+
+  //for nb-iot
+  LteEnbCmacSapProvider::NpdcchConfig nc = m_cmacSapProvider->GetNpdcchConfig ();
+  LteRrcSap::NpdcchConfigCommon npdcchConfigCommon;
+   
+  //for NB-IoT
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_0_Info.numRepetitionsPerPreambleAttempt_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_0.numRepetitionsPerPreambleAttempt_r13;
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_1_Info.numRepetitionsPerPreambleAttempt_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_1.numRepetitionsPerPreambleAttempt_r13;
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_2_Info.numRepetitionsPerPreambleAttempt_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_2.numRepetitionsPerPreambleAttempt_r13;
+  
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_0_Info.maxNumPreambleAttempt_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_0.maxNumPreambleAttempt_r13;
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_1_Info.maxNumPreambleAttempt_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_1.maxNumPreambleAttempt_r13;
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_2_Info.maxNumPreambleAttempt_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_2.maxNumPreambleAttempt_r13;
+  
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_0_Info.periodicity_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_0.periodicity_r13;
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_1_Info.periodicity_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_1.periodicity_r13;
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_2_Info.periodicity_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_2.periodicity_r13;
+
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_0_Info.startTime_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_0.startTime_r13;
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_1_Info.startTime_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_1.startTime_r13;
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_2_Info.startTime_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_2.startTime_r13;
+ 
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_0_Info.npdcch_numRepetitions_RA_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_0.npdcch_numRepetitions_RA_r13;
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_1_Info.npdcch_numRepetitions_RA_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_1.npdcch_numRepetitions_RA_r13;
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_2_Info.npdcch_numRepetitions_RA_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_2.npdcch_numRepetitions_RA_r13;
+ 
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_0_Info.npdcch_StartSF_CSS_RA_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_0.npdcch_StartSF_CSS_RA_r13;
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_1_Info.npdcch_StartSF_CSS_RA_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_1.npdcch_StartSF_CSS_RA_r13;
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.NPRACH_ParametersList_r13.CE_2_Info.npdcch_StartSF_CSS_RA_r13 = rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_2.npdcch_StartSF_CSS_RA_r13;
+ 
+  //for nb-iot
+  npdcchConfigCommon.npdcchConfig.NPDCCH_ParametersList.CELV0.npdcch_NumRepetitions = nc.npdcch_ParametersList.CELV0.npdcch_NumRepetitions;
+  npdcchConfigCommon.npdcchConfig.NPDCCH_ParametersList.CELV1.npdcch_NumRepetitions = nc.npdcch_ParametersList.CELV1.npdcch_NumRepetitions;
+  npdcchConfigCommon.npdcchConfig.NPDCCH_ParametersList.CELV2.npdcch_NumRepetitions = nc.npdcch_ParametersList.CELV2.npdcch_NumRepetitions;
+
+  npdcchConfigCommon.npdcchConfig.NPDCCH_ParametersList.CELV0.npdcch_StartSF_USS = nc.npdcch_ParametersList.CELV0.npdcch_StartSF_USS;
+  npdcchConfigCommon.npdcchConfig.NPDCCH_ParametersList.CELV1.npdcch_StartSF_USS = nc.npdcch_ParametersList.CELV1.npdcch_StartSF_USS;
+  npdcchConfigCommon.npdcchConfig.NPDCCH_ParametersList.CELV2.npdcch_StartSF_USS = nc.npdcch_ParametersList.CELV2.npdcch_StartSF_USS;
+
+  npdcchConfigCommon.npdcchConfig.NPDCCH_ParametersList.CELV0.npdcch_Offset_USS = nc.npdcch_ParametersList.CELV0.npdcch_Offset_USS;
+  npdcchConfigCommon.npdcchConfig.NPDCCH_ParametersList.CELV1.npdcch_Offset_USS = nc.npdcch_ParametersList.CELV1.npdcch_Offset_USS;
+  npdcchConfigCommon.npdcchConfig.NPDCCH_ParametersList.CELV2.npdcch_Offset_USS = nc.npdcch_ParametersList.CELV2.npdcch_Offset_USS;
+
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.rsrp_ThresholdsPrachInfoList_r13.NRSRP_thresholds_first = rc.nprachConfig.nprach_ConfigSIB.rsrp_ThresholdsPrachInfoList.NRSRP_thresholds_first_value;
+  rachConfigCommon.nprachConfig.nprach_ConfigSIB_NB_r13.rsrp_ThresholdsPrachInfoList_r13.NRSRP_thresholds_second = rc.nprachConfig.nprach_ConfigSIB.rsrp_ThresholdsPrachInfoList.NRSRP_thresholds_second_value; 
+
   rachConfigCommon.raSupervisionInfo.preambleTransMax = rc.preambleTransMax;
   rachConfigCommon.raSupervisionInfo.raResponseWindowSize = rc.raResponseWindowSize;
   si.sib2.radioResourceConfigCommon.rachConfigCommon = rachConfigCommon;
+
+  //for nb-iot
+  si.sib2.radioResourceConfigCommon.npdcchConfigCommon = npdcchConfigCommon;
 
   m_rrcSapUser->SendSystemInformation (si);
   Simulator::Schedule (m_systemInformationPeriodicity, &LteEnbRrc::SendSystemInformation, this);

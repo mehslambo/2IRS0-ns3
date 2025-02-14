@@ -112,6 +112,8 @@ void TcpClient::StartApplication(void) {
 		TypeId tid = TypeId::LookupByName("ns3::TcpSocketFactory");
 		m_socket = Socket::CreateSocket(GetNode(), tid);
 
+		m_socket->SetAttribute("DataRetries", UintegerValue(100));
+
 		m_socket->TraceConnectWithoutContext("CongestionWindow",
 				MakeCallback(&TcpClient::OnCongestionWindowChanged, this));
 		m_socket->TraceConnectWithoutContext("Retransmission",
@@ -180,13 +182,14 @@ void TcpClient::StopApplication() {
 	NS_LOG_FUNCTION_NOARGS ();
 
 	// leave the connection open in case there is remaining data
-	/*
+	// RV: don't leave it open, as it might not flush the data.
+	// /*
 	if (m_socket != 0) {
 		m_socket->Close();
 		m_socket->SetRecvCallback(MakeNullCallback<void, Ptr<Socket> >());
-		m_socket = 0;
+		// m_socket = 0;
 	}
-	*/
+	// */
 
 }
 
@@ -231,6 +234,7 @@ void TcpClient::Send(uint8_t* data, int size) {
 
 		if(err == Socket::SocketErrno::ERROR_MSGSIZE) {
 			m_packetdropped(p,DropReason::TCPTxBufferExceeded);
+			std::cout << "PACKET DROPPED" << std::endl;
 		}
 	}
 

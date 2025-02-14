@@ -42,14 +42,107 @@ class LteUeCmacSapProvider
 public:
   virtual ~LteUeCmacSapProvider ();
 
+
+  //for NB-IoT
+  struct EnhancementCoverageLevel_0{
+    int numRepetitionsPerPreambleAttempt_r13;
+    int maxNumPreambleAttempt_r13;
+    int periodicity_r13;
+    int startTime_r13;
+    int npdcch_numRepetitions_RA_r13;
+    int npdcch_StartSF_CSS_RA_r13;
+  };
+
+  struct EnhancementCoverageLevel_1{
+    int numRepetitionsPerPreambleAttempt_r13;
+    int maxNumPreambleAttempt_r13;
+    int periodicity_r13;
+    int startTime_r13;
+    int npdcch_numRepetitions_RA_r13;
+    int npdcch_StartSF_CSS_RA_r13;
+  };
+
+  struct EnhancementCoverageLevel_2{
+    int numRepetitionsPerPreambleAttempt_r13;
+    int maxNumPreambleAttempt_r13;
+    int periodicity_r13;
+    int startTime_r13;
+    int npdcch_numRepetitions_RA_r13;
+    int npdcch_StartSF_CSS_RA_r13;
+  };
+
+  //for nb-iot
+  struct CELV_0{
+    int npdcch_NumRepetitions;
+    int npdcch_StartSF_USS;
+    double npdcch_Offset_USS;
+  };
+
+  struct CELV_1{
+    int npdcch_NumRepetitions;
+    int npdcch_StartSF_USS;
+    double npdcch_Offset_USS;
+  };
+
+  struct CELV_2{
+    int npdcch_NumRepetitions;
+    int npdcch_StartSF_USS;
+    double npdcch_Offset_USS;
+  };
+
+  struct NPRACH_ParametersList{
+   //for NB-IoT
+    EnhancementCoverageLevel_0 CE_0;
+    EnhancementCoverageLevel_1 CE_1;
+    EnhancementCoverageLevel_2 CE_2;
+  };
+
+  //for nb-iot
+  struct NPDCCH_ParametersList{
+    CELV_0 CELV0;
+    CELV_1 CELV1;
+    CELV_2 CELV2;
+  };
+
+  struct RSRP_ThresholdsNPRACH_InfoList{
+    int NRSRP_thresholds_first_value;
+    int NRSRP_thresholds_second_value;
+  };
+
+  struct NPRACH_ConfigSIB{
+    RSRP_ThresholdsNPRACH_InfoList rsrp_ThresholdsPrachInfoList;
+    NPRACH_ParametersList nprach_ParametersList;
+  };
+
+  //for nb-iot
+  struct NPDCCH_ConfigSIB{
+    NPDCCH_ParametersList npdcch_ParametersList;
+  };
+
+  struct NprachConfig{
+    NPRACH_ConfigSIB nprach_ConfigSIB;
+  };
+
   struct RachConfig
   {
     uint8_t numberOfRaPreambles;
     uint8_t preambleTransMax;
     uint8_t raResponseWindowSize;
+
+    //for NB-IoT
+    NprachConfig nprachConfig;
+  };
+
+  //for nb-iot
+  struct NpdcchConfig
+  {
+    NPDCCH_ConfigSIB npdcch_ConfigSIB;
   };
   
   virtual void ConfigureRach (RachConfig rc) = 0;
+
+  //for nb-iot
+  virtual void ConfigureNpdcch (NpdcchConfig nc) = 0;
 
   /** 
    * tell the MAC to start a contention-based random access procedure,
@@ -57,6 +150,7 @@ public:
    * 
    */
   virtual void StartContentionBasedRandomAccessProcedure () = 0;
+  virtual void StartContentionBasedRandomAccessProcedure (uint64_t m_imsi,int repetitionOfPreamble_UE,int preambleTransmissionAttempt_UE,int periodicity_UE,int startTime_UE) = 0;
 
   /** 
    * tell the MAC to start a non-contention-based random access

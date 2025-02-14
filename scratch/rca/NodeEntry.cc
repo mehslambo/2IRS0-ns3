@@ -262,6 +262,9 @@ void NodeEntry::OnPhyStateChange(std::string context, const Time start,	const Ti
 		case WifiPhy::State::SLEEP: //Sleep
 			stats->get(this->id).TotalSleepTime += duration;
 			break;
+	        // RV: CCA_BUSY, SWITCHING
+		default:
+			break;
 		}
 	}
 	stats->get(this->id).EnergyRxIdle = (stats->get(this->id).TotalRxTime.GetSeconds() + stats->get(this->id).TotalIdleTime.GetSeconds()) * 4.4;

@@ -574,7 +574,13 @@ LteEnbPhy::ReceiveLteControlMessageList (std::list<Ptr<LteControlMessage> > msgL
     }
 }
 
-
+//for nb-iot
+// here is parameter for SIB1 scheduling
+static uint32_t sib1_startsf;
+static uint32_t sib1_counter;
+static uint32_t sib1_counter2;
+static uint32_t sib1_group_counter;
+static bool sib1_trigger;
 
 void
 LteEnbPhy::StartFrame (void)
@@ -583,6 +589,14 @@ LteEnbPhy::StartFrame (void)
 
   ++m_nrFrames;
   NS_LOG_INFO ("-----frame " << m_nrFrames << "-----");
+  
+  //for nb-iot 
+  // we calculate SIB1 startsf here first
+  // every 1st frame calculate SIB1 startsf in 256 frames (2560ms by spec)
+  if(m_nrFrames % 256 == 1){
+    ConfigureSIB1StartSF(m_mib.schedulinginfosib1_r13.pcid, m_mib.schedulinginfosib1_r13.periodicity);
+  }
+
   m_nrSubFrames = 0;
 
   // send MIB at beginning of every frame
@@ -593,7 +607,6 @@ LteEnbPhy::StartFrame (void)
 
   StartSubFrame ();
 }
-
 
 void
 LteEnbPhy::StartSubFrame (void)
@@ -609,12 +622,78 @@ LteEnbPhy::StartSubFrame (void)
    * which SFN mod 2 = 0," except that 3GPP counts frames and subframes starting
    * from 0, while ns-3 counts starting from 1.
    */
-  if ((m_nrSubFrames == 6) && ((m_nrFrames % 2) == 1))
+  // if ((m_nrSubFrames == 6) && ((m_nrFrames % 2) == 1))
+  //   {
+  //     Ptr<Sib1LteControlMessage> msg = Create<Sib1LteControlMessage> ();
+  //     msg->SetSib1 (m_sib1);
+  //     m_controlMessagesQueue.at (0).push_back (msg);
+  //   }  
+
+  //for nb-iot 
+  // since ns3 start from frame 1 and subframe 0
+  // we have plus 1 for sib_startsf
+  // and allocate SIB1 in subframe 4(for ns3 subframe 5)
+  // sib1_trigger determine whether send SIB1 in a 16 subframes group
+  // sib1_counter to judge whether send 8 subframes SIB1
+  // sib1_counter2 to judge whether send number of periodicity SIB1 and suspend the SIB1 scheduling within 2560ms
+  if (sib1_trigger == true)
+  {
+    if ((m_nrFrames == sib1_startsf) && (m_nrSubFrames == 5))
     {
-      Ptr<Sib1LteControlMessage> msg = Create<Sib1LteControlMessage> ();
-      msg->SetSib1 (m_sib1);
-      m_controlMessagesQueue.at (0).push_back (msg);
+        Ptr<Sib1LteControlMessage> msg = Create<Sib1LteControlMessage> ();
+        msg->SetSib1 (m_sib1);
+        m_controlMessagesQueue.at (0).push_back (msg);
+        
+        // test SIB1 scheduling
+        enb_mac->SIB1Indication(m_nrFrames);
+
+        sib1_startsf = sib1_startsf+2;
+        sib1_counter++;
+        //for nb-iot
+        // depend periodicty to calculate next 16 frames SIB1 group
+        // we return sib1_startsf to first frame number in 16 frames group
+        if(sib1_counter == 8)
+        {
+          sib1_counter = 0;
+          sib1_counter2++;
+          if(m_mib.schedulinginfosib1_r13.periodicity == 4)
+          {
+            if(sib1_counter2 == 4)
+            {
+              sib1_trigger = false;
+              sib1_counter2 = 0;
+            }
+
+            sib1_startsf = sib1_startsf - 16;
+            sib1_startsf = sib1_startsf + 64;
+          }
+          else if(m_mib.schedulinginfosib1_r13.periodicity == 8)
+          {
+            if(sib1_counter2 == 8)
+            {
+              sib1_trigger = false;
+              sib1_counter2 = 0;
+            }
+            
+            sib1_startsf = sib1_startsf - 16;
+            sib1_startsf = sib1_startsf + 32;
+          }
+          else if(m_mib.schedulinginfosib1_r13.periodicity == 16)
+          {
+            if(sib1_counter2 == 16)
+            {
+              sib1_trigger = false;
+              sib1_counter2 = 0;
+            }
+
+            sib1_startsf = sib1_startsf - 16;
+            sib1_startsf = sib1_startsf + 16;
+          }
+        }
     }
+  }
+  
+
 
   if (m_srsPeriodicity>0)
     { 
@@ -762,6 +841,46 @@ LteEnbPhy::StartSubFrame (void)
                        &LteEnbPhy::EndSubFrame,
                        this);
 
+}
+
+//for nb-iot
+void
+LteEnbPhy::ConfigureSIB1StartSF(uint16_t pcid, uint16_t periodicity)
+{
+  if(periodicity == 4)
+  {
+    if(pcid % 4 == 0)
+      sib1_startsf = 0;
+    else if(pcid % 4 == 1)
+      sib1_startsf = 16;
+    else if(pcid % 4 == 2)
+      sib1_startsf = 32;
+    else if(pcid % 4 == 3)
+      sib1_startsf = 48;
+  }
+  else if(periodicity == 8)
+  {
+    if(pcid % 2 == 0)
+      sib1_startsf = 0;
+    else if(pcid % 2 == 1)
+      sib1_startsf = 16;
+  }
+  else if(periodicity == 16)
+  {
+    if(pcid % 2 == 0)
+      sib1_startsf = 0;
+    else if(pcid % 2 == 1)
+      sib1_startsf = 1;
+  }
+  //for nb-iot 
+  // since ns3 start from frame 1 and subframe 0
+  // we have plus 1 for sib_startsf
+  // and allocate SIB1 in subframe 4(for ns3 subframe 5)
+  // sib1_group_counter for every 2560ms to add 256*n frames
+  sib1_startsf++;
+  sib1_startsf = 256*sib1_group_counter + sib1_startsf;
+  sib1_trigger = true;
+  sib1_group_counter++;
 }
 
 void

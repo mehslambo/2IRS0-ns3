@@ -59,8 +59,8 @@ NS_LOG_COMPONENT_DEFINE ("S1gRawCtr");
 
 //NS_OBJECT_ENSURE_REGISTERED (S1gRawCtr);
 
-//** AP update info after RAW ends(right before next beacon is sent)
-//list of sensor allowed to transmit in last beacon ************
+// ** AP update info after RAW ends(right before next beacon is sent)
+// list of sensor allowed to transmit in last beacon ************
 Sensor::Sensor ()
 {
   last_transmissionInterval = 1;
@@ -236,7 +236,7 @@ S1gRawCtr::UdpateSensorStaInfo (std::vector<uint16_t> m_sensorlist, std::vector<
   std::ofstream outputfile;
   std::ostringstream APId;
 
-  uint16_t numsensor = m_sensorlist.size (); //need to be improved
+  // uint16_t numsensor = m_sensorlist.size (); //need to be improved
   /*if (m_stations.size() < numsensor)
      {
       for (uint16_t i = m_stations.size(); i < numsensor; i++)
@@ -411,7 +411,8 @@ S1gRawCtr::UdpateSensorStaInfo (std::vector<uint16_t> m_sensorlist, std::vector<
     EstimateInterval :
            //stationTransmit->EstimateTransmissionInterval (currentId);
            //NS_LOG_UNCOND ("... "); //to do, remove it
-         uint16_t add=0;
+           uint16_t add=0;
+	   (void) add;   // RV: due to label.
      }
 
     for (std::vector<uint16_t>::iterator it = m_aidList.begin(); it != m_aidList.end(); it++)
@@ -547,7 +548,7 @@ Sensor::EstimateTransmissionInterval (uint64_t currentId, uint64_t m_beaconInter
              //m_transmissionIntervalMax = last_transmissionInterval - 1;
              m_transmissionInterval = m_transmissionInterval - 1;
              m_transInOneBeacon = 1;
-               uint16_t intervalsum = m_transmissionInterval;
+               // uint16_t intervalsum = m_transmissionInterval;
                /*
                for (std::vector<uint16_t>::iterator ci = m_transIntervalList.begin(); ci != m_transIntervalList.end(); ci++)
                {
@@ -599,7 +600,7 @@ Sensor::EstimateTransmissionInterval (uint64_t currentId, uint64_t m_beaconInter
          //m_transmissionIntervalMax = currentId - m_snesorUpdatInfo.preSuccessId;
          m_transmissionInterval = currentId - m_snesorUpdatInfo.preSuccessId;
          m_index = 0;
-         uint16_t intervalsum = m_transmissionInterval;
+         // uint16_t intervalsum = m_transmissionInterval;
          /*
          for (std::vector<uint16_t>::iterator ci = m_transIntervalList.begin(); ci != m_transIntervalList.end(); ci++)
          {
@@ -639,7 +640,7 @@ Sensor::EstimateTransmissionInterval (uint64_t currentId, uint64_t m_beaconInter
      }*/
     //NS_LOG_UNCOND ("aid = " << m_aid << " ,m_transmissionIntervalMin = " << m_transmissionIntervalMin << ", m_transmissionIntervalMax = " << m_transmissionIntervalMax );
     //m_transmissionInterval = (m_transmissionIntervalMin + m_transmissionIntervalMax)/2;
-    uint64_t m_nextId = m_snesorUpdatInfo.CurrentSuccessId + m_transmissionInterval; ////** AP update info after RAW ends(right before next beacon is sent)
+    uint64_t m_nextId = m_snesorUpdatInfo.CurrentSuccessId + m_transmissionInterval; //// ** AP update info after RAW ends(right before next beacon is sent)
     EstimateNextTransmissionId (m_nextId);
     //NS_LOG_UNCOND (m_snesorUpdatInfo.lastTryBFpreSuccessId << "," << m_snesorUpdatInfo.lastTryBFCurrentSuccessId << ", " << m_snesorUpdatInfo.preSuccessId << ", " << currentId << ", " << m_snesorUpdatInfo.preTrySuccess << ", " << m_snesorUpdatInfo.preUnsuccessId);
 
@@ -804,13 +805,14 @@ S1gRawCtr::SetSensorAllowedToSend ()
 std::vector<uint16_t>::iterator
 S1gRawCtr::LookupLastTransmission (uint16_t aid)
 {
+    std::vector<uint16_t>::iterator it;
 
-    for (std::vector<uint16_t>::iterator it = m_lastTransmissionList.begin(); it != m_lastTransmissionList.end(); it++)
+    for (it = m_lastTransmissionList.begin(); it != m_lastTransmissionList.end(); it++)
     {
        // NS_LOG_UNCOND ("m_lastTransmissionList = " << *it);
     }
 
-  for (std::vector<uint16_t>::iterator it = m_lastTransmissionList.begin(); it != m_lastTransmissionList.end(); it++)
+  for (it = m_lastTransmissionList.begin(); it != m_lastTransmissionList.end(); it++)
     {
         if (aid == *it)
         {
@@ -819,6 +821,7 @@ S1gRawCtr::LookupLastTransmission (uint16_t aid)
     }
 
   NS_ASSERT ("ERROR OCUURS");
+  return it;
 }
 
 

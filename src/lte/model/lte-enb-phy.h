@@ -28,7 +28,7 @@
 #include <ns3/lte-enb-cphy-sap.h>
 #include <ns3/lte-phy.h>
 #include <ns3/lte-harq-phy.h>
-
+#include <ns3/lte-enb-mac.h>
 #include <map>
 #include <set>
 
@@ -263,6 +263,9 @@ public:
    */
   void PhyPduReceived (Ptr<Packet> p);
 
+  //for nb-iot
+  void ConfigureSIB1StartSF(uint16_t pcid, uint16_t periodicity);
+
   /**
   * \brief PhySpectrum received a new list of LteControlMessage
   */
@@ -368,6 +371,8 @@ private:
 
   LteEnbCphySapProvider* m_enbCphySapProvider;
   LteEnbCphySapUser* m_enbCphySapUser;
+
+  LteEnbMac* enb_mac = new LteEnbMac;
 
   /**
    * The frame number currently served. In ns-3, frame number starts from 1.

@@ -124,24 +124,113 @@ public:
    * \param params 
    */
   virtual void UeUpdateConfigurationReq (UeConfig params) = 0;
+  
 
 
   /**
    * struct defining the RACH configuration of the MAC
    * 
    */
+
+  //for NB-IoT
+  struct EnhancementCoverageLevel_0{
+    int numRepetitionsPerPreambleAttempt_r13;
+    int maxNumPreambleAttempt_r13;
+    int periodicity_r13;
+    int startTime_r13;
+    int npdcch_numRepetitions_RA_r13;
+    int npdcch_StartSF_CSS_RA_r13;
+  };
+
+  struct EnhancementCoverageLevel_1{
+    int numRepetitionsPerPreambleAttempt_r13;
+    int maxNumPreambleAttempt_r13;
+    int periodicity_r13;
+    int startTime_r13;
+    int npdcch_numRepetitions_RA_r13;
+    int npdcch_StartSF_CSS_RA_r13;
+  };
+
+  struct EnhancementCoverageLevel_2{
+    int numRepetitionsPerPreambleAttempt_r13;
+    int maxNumPreambleAttempt_r13;
+    int periodicity_r13;
+    int startTime_r13;
+    int npdcch_numRepetitions_RA_r13;
+    int npdcch_StartSF_CSS_RA_r13;
+  };
+
+  //for nb-iot
+  struct CELV0_Info{
+    int npdcch_NumRepetitions;
+    int npdcch_StartSF_USS;
+    double npdcch_Offset_USS;
+  };
+
+  struct CELV1_Info{
+    int npdcch_NumRepetitions;
+    int npdcch_StartSF_USS;
+    double npdcch_Offset_USS;
+  };
+
+  struct CELV2_Info{
+    int npdcch_NumRepetitions;
+    int npdcch_StartSF_USS;
+    double npdcch_Offset_USS;
+  };
+
+  struct NPRACH_ParametersList{
+   //for NB-IoT
+    EnhancementCoverageLevel_0 CE_0;
+    EnhancementCoverageLevel_1 CE_1;
+    EnhancementCoverageLevel_2 CE_2;
+  };
+
+  //for nb-iot
+  struct NPDCCH_ParametersList{
+    CELV0_Info CELV0;
+    CELV1_Info CELV1;
+    CELV2_Info CELV2;
+  };
+
+  struct RSRP_ThresholdsNPRACH_InfoList{
+    int NRSRP_thresholds_first_value;
+    int NRSRP_thresholds_second_value;
+  };
+
+  struct NPRACH_ConfigSIB{
+    RSRP_ThresholdsNPRACH_InfoList rsrp_ThresholdsPrachInfoList;
+    NPRACH_ParametersList nprach_ParametersList;
+  };
+
+  struct NprachConfig{
+    NPRACH_ConfigSIB nprach_ConfigSIB;
+  };
+
   struct RachConfig
   {
     uint8_t numberOfRaPreambles;
     uint8_t preambleTransMax;
     uint8_t raResponseWindowSize;
+
+    //for NB-IoT
+    NprachConfig nprachConfig;
+    
   };
+
+  //for nb-iot
+  struct NpdcchConfig{
+    NPDCCH_ParametersList npdcch_ParametersList;
+  };
+
 
   /** 
    * 
    * \return the current RACH configuration of the MAC
    */
   virtual RachConfig GetRachConfig () = 0;
+
+  virtual NpdcchConfig GetNpdcchConfig () = 0;
 
   /**
    * 

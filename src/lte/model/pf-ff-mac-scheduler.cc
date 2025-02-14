@@ -751,6 +751,13 @@ PfFfMacScheduler::DoSchedDlTriggerReq (const struct FfMacSchedSapProvider::Sched
           // no more allocation space: finish allocation
           break;
         }
+
+      //for NB-IoT 
+      //In NB-IoT, each UE only allocated 1 RB
+      // So we change the rbLen to 1 
+      rbLen = 1;
+
+
       newRar.m_grant.m_rbStart = rbStart;
       newRar.m_grant.m_rbLen = rbLen;
       newRar.m_grant.m_tbSize = tbSizeBits / 8;
@@ -1482,7 +1489,7 @@ PfFfMacScheduler::EstimateUlSinr (uint16_t rnti, uint16_t rb)
     {
       // take the average SINR value among the available
       double sinrSum = 0;
-      int sinrNum = 0;
+      unsigned int sinrNum = 0;
       for (uint32_t i = 0; i < m_cschedCellConfig.m_ulBandwidth; i++)
         {
           double sinr = (*itCqi).second.at (i);

@@ -27,7 +27,7 @@
 #include <ns3/object.h>
 #include <ns3/traced-callback.h>
 #include <ns3/event-id.h>
-
+#include <ns3/lte-enb-mac.h>
 #include <ns3/lte-enb-cmac-sap.h>
 #include <ns3/lte-mac-sap.h>
 #include <ns3/ff-mac-sched-sap.h>
@@ -51,8 +51,7 @@ class LteSignalingRadioBearerInfo;
 class LteDataRadioBearerInfo;
 class LteEnbRrc;
 class Packet;
-
-
+class LteEnbMac;
 
 /**
  * \ingroup lte
@@ -64,7 +63,6 @@ class UeManager : public Object
   friend class LtePdcpSpecificLtePdcpSapUser<UeManager>;
 
 public:
-
 
   /**
    * The state of the UeManager at the eNB RRC
@@ -447,6 +445,8 @@ private:
   State m_state;
   ///
   LtePdcpSapUser* m_drbPdcpSapUser;
+  //for nb-iot
+  LteEnbMac* enb_mac;
   ///
   bool m_pendingRrcConnectionReconfiguration;
 
@@ -537,6 +537,14 @@ protected:
 public:
   static TypeId GetTypeId (void);
 
+  //for nb-iot
+  void RecvUePara(uint16_t rnti, int rep, int startsf, double offset);
+
+  // msg4 scheduling
+  void msg4SchedulingInfo(LteRrcSap::NPRACH_Parameters_NB_r13 np);
+
+  //for nb-iot
+  void SendRrcConnectionSetup_NB();
 
   /**
    * Set the X2 SAP this RRC should interact with
@@ -725,6 +733,7 @@ public:
                       uint16_t dlEarfcn,
                       uint16_t cellId);
 
+
   /** 
    * set the cell id of this eNB
    * 
@@ -883,6 +892,9 @@ private:
   void DoRecvRrcConnectionReestablishmentComplete (uint16_t rnti, LteRrcSap::RrcConnectionReestablishmentComplete msg);
   /// Part of the RRC protocol. Forwarding LteEnbRrcSapProvider::RecvMeasurementReport interface to UeManager::RecvMeasurementReport
   void DoRecvMeasurementReport (uint16_t rnti, LteRrcSap::MeasurementReport msg);
+  //for nb-iot
+  //void DoRecvCE (uint64_t imsi, uint16_t rnti, int judge_ce_level);
+
 
   // S1 SAP methods
 
@@ -1087,6 +1099,9 @@ private:
   LteEnbCphySapUser* m_cphySapUser;
   /// Interface to the eNodeB PHY instance.
   LteEnbCphySapProvider* m_cphySapProvider;
+
+  //for nb-iot send ue para
+  //LteEnbMac* enb_mac;
 
   /// True if ConfigureCell() has been completed.
   bool m_configured;

@@ -37,6 +37,7 @@
 #include "ns3/lte-mac-sap.h"
 #include <ns3/lte-common.h>
 
+#include <ns3/lte-enb-rrc.h>
 
 namespace ns3 {
 
@@ -65,6 +66,8 @@ public:
   virtual void ReleaseLc (uint16_t rnti, uint8_t lcid);
   virtual void UeUpdateConfigurationReq (UeConfig params);
   virtual RachConfig GetRachConfig ();
+  //for nb-iot
+  virtual NpdcchConfig GetNpdcchConfig ();
   virtual AllocateNcRaPreambleReturnValue AllocateNcRaPreamble (uint16_t rnti);
   
 
@@ -124,6 +127,13 @@ LteEnbCmacSapProvider::RachConfig
 EnbMacMemberLteEnbCmacSapProvider::GetRachConfig ()
 {
   return m_mac->DoGetRachConfig ();
+}
+
+//for nb-iot
+LteEnbCmacSapProvider::NpdcchConfig
+EnbMacMemberLteEnbCmacSapProvider::GetNpdcchConfig ()
+{
+  return m_mac->DoGetNpdcchConfig();
 }
  
 LteEnbCmacSapProvider::AllocateNcRaPreambleReturnValue 
@@ -318,9 +328,9 @@ LteEnbMac::GetTypeId (void)
     .AddConstructor<LteEnbMac> ()
     .AddAttribute ("NumberOfRaPreambles",
                    "how many random access preambles are available for the contention based RACH process",
-                   UintegerValue (50),
+                   UintegerValue (48), //48 for NB-IoT,original is 50
                    MakeUintegerAccessor (&LteEnbMac::m_numberOfRaPreambles),
-                   MakeUintegerChecker<uint8_t> (4, 64))
+                   MakeUintegerChecker<uint8_t> (4, 48)) //48 for NB-IoT,original is 64
     .AddAttribute ("PreambleTransMax",
                    "Maximum number of random access preamble transmissions",
                    UintegerValue (50),
@@ -344,6 +354,39 @@ LteEnbMac::GetTypeId (void)
   return tid;
 }
 
+// for nb-iot
+bool
+LteEnbMac::CCtrigger = false; 
+
+bool
+LteEnbMac::SCtrigger = false;
+
+std::vector<uint16_t>
+LteEnbMac::m_rnti;
+
+std::vector<int>
+LteEnbMac::m_rep;
+
+std::vector<int> 
+LteEnbMac::m_startsf; 
+
+std::vector<double> 
+LteEnbMac::m_offset;
+
+std::vector<LteEnbMac::DCI_N0>
+LteEnbMac::m_dci_n0;
+
+std::vector<LteEnbMac::DCI_N1>
+LteEnbMac::m_dci_n1;
+
+std::vector<uint16_t>
+LteEnbMac::m_ue;
+
+std::vector<int> 
+LteEnbMac::m_kb; 
+
+std::vector<int> 
+LteEnbMac::m_k; 
 
 LteEnbMac::LteEnbMac ()
 {
@@ -442,17 +485,455 @@ LteEnbMac::GetLteEnbPhySapUser ()
   return m_enbPhySapUser;
 }
 
+//for nb-iot
+// for enb mac univeral subframe and frame  
+static uint32_t u_frameNo;
+static uint32_t u_subframeNo;
 
+//for nb-iot
+// for enb mac mark msg4 scheduled subframeNo and frameNo
+static uint32_t sch_frameNo;
+static uint32_t sch_subframeNo;
+
+//for nb-iot
+// for change offset for scheduling 0, 1/8, 2/8, 3/8
+// i_offset for hopping offset value for different UEs
+static double offset[4];
+static int i_offset = 0;
+
+//for nb-iot
+// for how many UE we have to scheduling, scaleable
+// initailize 0 UE for scheduling
+static int i_ue = 0;
+
+//for nb-iot
+// choose simulation scenario downlink or uplink
+// NPDSCH (channel = 1) or NPUSCH (channel = 0)
+static int channel;
+static int ch;
+
+//for nb-iot
+// N is resource allocation for scheduling UE in SCH (the unit of N is subframe)
+// start_ stands is the first frame and subframe of N for the scheduling UE
+// end_ stands for the end frame and subframe of N for the scheduling UE
+static int N;
+static int start_frameNo, start_subframeNo;
+static int end_frameNo, end_subframeNo;
+
+//for nb-iot
+static uint32_t sib1_frameNo=0;
+
+//for nb-iot
+// these parameters for simulation statistic results 
+static int npdcch_subframe;
+static int npdcch_mib;
+static int npdcch_sib1;
+static int npdcch_npss;
+static int npdcch_nsss;
+static int npdcch_dci;
+
+static int npdsch_subframe;
+static int npdsch_mib;
+static int npdsch_sib1;
+static int npdsch_npss;
+static int npdsch_nsss;
+static int npdsch_user;
+
+static int npusch_subframe;
+static int npusch_user;
+
+static int sch_ue;
 
 void
 LteEnbMac::DoSubframeIndication (uint32_t frameNo, uint32_t subframeNo)
 {
-  NS_LOG_FUNCTION (this << " EnbMac - frame " << frameNo << " subframe " << subframeNo);
+  NS_LOG_FUNCTION (this << " EnbMac - frame " << frameNo << " subframe " << subframeNo << "--------------------------------------------------");
+  u_frameNo = frameNo;
+  u_subframeNo = subframeNo;
+
+  sch_frameNo = frameNo;
+  sch_subframeNo = subframeNo;
 
   // Store current frame / subframe number
   m_frameNo = frameNo;
   m_subframeNo = subframeNo;
 
+  if(m_rnti.empty() == true){
+    CCtrigger = false;
+  }
+
+  // --- NPDCCH Scheduler ---
+  if(CCtrigger == true && SCtrigger == false){
+    
+    // show parameters information of every UEs in the scheduling queue
+    std::cout << "-----------------RNTI table size: " << m_rnti.size() << "-----------------"<< std::endl;
+    for(int i = 0;i<int(m_rnti.size()); i++)
+    {
+      int j = i%4;
+      std::cout << "RNTI: " << m_rnti[i] << " Rep: " << m_rep[i] << " StartSf: " << m_startsf[i] << " Offset: " << offset[j] << std::endl;
+    }
+    std::cout << "----------------------------------------------------" << std::endl;
+
+    std::cout << "Search Space UE Specific Searching for rnti: " << m_rnti[i_ue] << " Start..." << std::endl;
+    std::cout << "rnti: " << m_rnti[i_ue] << " rep: " << m_rep[i_ue] << " startsf: " << m_startsf[i_ue] << " offset: " << offset[i_offset] << std::endl;
+
+    // m_rep stands for R_max
+    // m_startsf stands for G
+    // offset stands for alpha 
+    double cond1,cond2;
+    int T,R;
+    T = m_rep[i_ue]*m_startsf[i_ue];
+    cond1 = (10*(m_frameNo-1)+(m_subframeNo-1)) % T;
+    cond2 = offset[i_offset]*T;
+
+
+    // the R here stand for the repetition number of DCI, it's scalealbe accroding to spec
+    // if R_max = 1, R = 1
+    // if R_max = 2, R = 1 or 2
+    // if R_max = 4, R = 1 or 2 or 4
+    // if R_max >= 8, R = R_max/8 or R_max/4 or R_max/2 or R_max
+    if(m_rep[i_ue] == 1)
+    {
+      if(m_R == 1)
+        R = 1;
+      else
+        NS_FATAL_ERROR("Wrong DCI Repetition Configuration");
+    }
+    else if(m_rep[i_ue] == 2)
+    {
+      if(m_R == 1 || m_R == 2)
+        R = m_R;
+      else
+        NS_FATAL_ERROR("Wrong DCI Repetition Configuration");
+    }
+    else if(m_rep[i_ue] == 4)
+    {
+      if(m_R == 1 || m_R == 2 || m_R == 4)
+        R = m_R;
+      else
+        NS_FATAL_ERROR("Wrong DCI Repetition Configuration");
+    }
+    else if(m_rep[i_ue] > 4)
+    {
+      if(m_R == m_rep[i_ue] || m_R == m_rep[i_ue]/2 || m_R == m_rep[i_ue]/4 || m_R == m_rep[i_ue]/8)
+        R = m_R;
+      else
+        NS_FATAL_ERROR("Wrong DCI Repetition Configuration");
+    }
+
+    if(cond1 == cond2){
+        //for nb-iot
+        // NPDCCH schedule one UE per subframe
+        std::cout << "Search Space UE Specific Searching for rnti: " << m_rnti[i_ue] << " Complete" << std::endl;
+        CCtrigger = false;
+        DoSearchSpace(m_frameNo, m_subframeNo, m_rnti[i_ue], R);
+      }
+    else
+    {
+      if(m_subframeNo == 1)
+      {
+        npdcch_mib++;
+      }
+      else if(m_subframeNo == 6)
+      {
+        npdcch_npss++;
+      }
+      else if((m_frameNo-1)%2 == 0 && m_subframeNo == 10)
+      {
+        npdcch_nsss++;
+      }
+      else if(m_frameNo == sib1_frameNo && m_subframeNo == 5)
+      {
+        npdcch_sib1++;
+      }
+      npdcch_subframe++;
+    }
+    
+  }
+
+  // --- NPDSCH/NPUSCH Scheduler ---
+  if(SCtrigger == true)
+  {
+    std::cout << "-------------NPDSCH/NPUSCH Scheduler-------------" << std::endl;
+    switch (channel)
+    {
+    case 0:
+    {
+      int N_RU0[8] = {1, 2, 3, 4, 5, 6, 8, 10};// NPUSCH resource assignment candidates
+      int N_Rep0[8] = {1, 2, 4, 8, 16, 32, 64, 128};// NPUSCH repetition number candidates
+      int N_slot0 = 2; // NPUSCH slots of resource unit, here, our simulation is single tone with 15khz ,therefore N_slot = 2, can check in spec 36.331
+
+      start_frameNo = (m_kb[0] + m_k[0])/10;
+      start_subframeNo = (m_kb[0] + m_k[0])%10;
+      if(start_subframeNo == 0)
+      {
+        start_frameNo--;
+        start_subframeNo=10;
+      }
+
+      // special case for last UE in SCH
+      // we give last UE N = 1, scaleable
+      if(int(m_ue.size()) == 1)
+      {
+        end_frameNo = start_frameNo;
+        end_subframeNo = start_subframeNo;
+        N = N_RU0[0]*N_Rep0[0]*N_slot0/2;
+        std::cout << "RNTI: " << m_ue[0] << std::endl;
+        std::cout << "startframe: " << start_frameNo << std::endl;
+        std::cout << "startsubframe: " << start_subframeNo << std::endl;
+        std::cout << "endframe: " << end_frameNo << std::endl;
+        std::cout << "endsubframe: " << end_subframeNo << std::endl;
+        std::cout << "N: " << N << " N_RU: " << N_RU0[0] << " N_Rep: " << N_Rep0[0] << " N_slot: " << N_slot0 << std::endl;
+      }
+      else
+      {
+        // use next scheduled UE start_subframe -1 to calculate current scheduled UE enb_subframe
+        end_frameNo = (m_kb[1] + m_k[1])/10;
+        end_subframeNo = (m_kb[1] + m_k[1])%10;
+        if(end_subframeNo == 0)
+        {
+          end_frameNo--;
+          end_subframeNo=10;
+        }
+
+        if(end_subframeNo-1 == 0)
+        {
+          end_subframeNo = 10;
+          end_frameNo = end_frameNo-1;
+        }
+        else
+        {
+          end_subframeNo--;
+        }
+        
+        // calculate N
+        int i = 0;
+        while( ((m_kb[1] + m_k[1])-(m_kb[0] + m_k[0])) >= N_RU0[0]*N_Rep0[i]*N_slot0/2 )
+        {
+          i++;
+        }i--;
+        //for nb-iot testing
+        // if(i>1)
+        // i=1;
+        N = N_RU0[0]*N_Rep0[i]*N_slot0/2;
+
+        std::cout << "RNTI: " << m_ue[0] << std::endl;
+        std::cout << "startframe: " << start_frameNo << std::endl;
+        std::cout << "startsubframe: " << start_subframeNo << std::endl;
+        std::cout << "endframe: " << end_frameNo << std::endl;
+        std::cout << "endsubframe: " << end_subframeNo << std::endl;
+        std::cout << "N: " << N << " N_RU: " << N_RU0[0] << " N_Rep: " << N_Rep0[i] << " N_slot: " << N_slot0 << std::endl;
+      }
+      
+      //avoid other UE enter this switch function
+      ch = channel;
+      channel = 2;
+      break;
+    }
+
+    case 1:
+    {
+      int N_SF1[8] = {1, 2, 3, 4, 5, 6, 8, 10};// NPDSCH resource assignment candidates
+      int N_Rep1[16] = {1, 2, 4, 8, 16, 32, 64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048};// NPDSCH repetition number candidates
+
+      start_frameNo = (m_kb[0] + m_k[0] + 5)/10;
+      start_subframeNo = (m_kb[0] + m_k[0] + 5)%10;
+      if(start_subframeNo == 0)
+      {
+        start_frameNo--;
+        start_subframeNo=10;
+      }
+
+      // special case for last UE in SCH
+      // we give last UE N = 1, scaleable
+      if(int(m_ue.size()) == 1)
+      {
+        end_frameNo = start_frameNo;
+        end_subframeNo = start_subframeNo;
+        N = N_SF1[0]*N_Rep1[0];
+        std::cout << "RNTI: " << m_ue[0] << std::endl;
+        std::cout << "startframe: " << start_frameNo << std::endl;
+        std::cout << "startsubframe: " << start_subframeNo << std::endl;
+        std::cout << "endframe: " << end_frameNo << std::endl;
+        std::cout << "endsubframe: " << end_subframeNo << std::endl;
+        std::cout << "N: " << N << " N_SF: " << N_SF1[0] << " N_Rep: " << N_Rep1[0] << std::endl;
+      }
+      else
+      {
+        // use next scheduled UE start_subframe -1 to calculate current scheduled UE enb_subframe
+        end_frameNo = (m_kb[1] + m_k[1] + 5)/10;
+        end_subframeNo = (m_kb[1] + m_k[1] + 5)%10;
+        if(end_subframeNo == 0)
+        {
+          end_frameNo--;
+          end_subframeNo=10;
+        }
+
+        if(end_subframeNo-1 == 0)
+        {
+          end_subframeNo = 10;
+          end_frameNo = end_frameNo-1;
+        }
+        else
+        {
+          end_subframeNo--;
+        }
+        
+        // calculate N
+        int i = 0;
+        while( ((m_kb[1] + m_k[1] + 5)-(m_kb[0] + m_k[0] + 5)) >= N_SF1[0]*N_Rep1[i] )
+        {
+          i++;
+        }i--;
+        //for nb-iot testing
+        // if(i>1)
+        // i=1;
+        N = N_SF1[0]*N_Rep1[i];
+
+        std::cout << "RNTI: " << m_ue[0] << std::endl;
+        std::cout << "startframe: " << start_frameNo << std::endl;
+        std::cout << "startsubframe: " << start_subframeNo << std::endl;
+        std::cout << "endframe: " << end_frameNo << std::endl;
+        std::cout << "endsubframe: " << end_subframeNo << std::endl;
+        std::cout << "N: " << N << " N_SF: " << N_SF1[0] << " N_Rep: " << N_Rep1[i] << std::endl;
+      }
+
+      //avoid other UE enter this switch function
+      ch = channel;
+      channel = 2;
+      break;
+    }
+    
+    default:
+      break;
+    }
+
+    if(start_frameNo == (int)m_frameNo && start_subframeNo == (int)m_subframeNo)
+    {
+      if(m_subframeNo == 1 && ch == 1)
+      {
+        std::cout << "------------" << std::endl;
+        std::cout << "|  MIB-NB  |" << std::endl;
+        std::cout << "------------" << std::endl;
+        npdsch_mib++;
+        npdsch_subframe++;
+      }
+      else if(m_subframeNo == 6 && ch == 1)
+      {
+        std::cout << "------------" << std::endl;
+        std::cout << "|   NPSS   |" << std::endl;
+        std::cout << "------------" << std::endl;
+        npdsch_npss++;
+        npdsch_subframe++;
+      }
+      else if((m_frameNo-1)%2 == 0 && m_subframeNo == 10 && ch == 1)
+      {
+        std::cout << "------------" << std::endl;
+        std::cout << "|   NSSS   |" << std::endl;
+        std::cout << "------------" << std::endl;
+        npdsch_nsss++;
+        npdsch_subframe++;
+      }
+      else if(m_frameNo == sib1_frameNo && m_subframeNo == 5 && ch ==1)
+      {
+        std::cout << "------------" << std::endl;
+        std::cout << "|  SIB1-NB |" << std::endl;
+        std::cout << "------------" << std::endl;
+        npdsch_sib1++;
+        npdsch_subframe++;
+      }
+      else if(ch == 0)
+      {
+        std::cout << "---------------------------" << std::endl;
+        std::cout << "|  NPUSCH for RNTI: "  << m_ue[0] << "  |" << std::endl;
+        std::cout << "---------------------------" << std::endl;
+        N--;
+        npusch_user++;
+        npusch_subframe++;
+      }
+      else if(ch == 1)
+      {
+        std::cout << "---------------------------" << std::endl;
+        std::cout << "|  NPDSCH for RNTI: "  << m_ue[0] << "  |" << std::endl;
+        std::cout << "---------------------------" << std::endl;
+        N--;
+        npdsch_user++;
+        npdsch_subframe++;
+      }
+
+      if((start_frameNo == end_frameNo && start_subframeNo == end_subframeNo) || N == 0)
+      {
+        channel = ch;
+        m_ue.erase(m_ue.begin());
+        m_kb.erase(m_kb.begin());
+        m_k.erase(m_k.begin());
+      }
+      if(start_subframeNo+1>10)
+        {
+          start_frameNo++;
+          start_subframeNo = 1;
+        }
+      else
+      {
+        start_subframeNo++;
+      }
+      // end the SCH scheduler
+      if(m_ue.empty() == true){
+        if(channel == 0)
+        {
+          std::cout << "------------NPUSCH Statistical Results------------" << std::endl;
+          std::cout << "|UEs            |" << sch_ue << std::endl;
+          std::cout << "|NPUSCH         |" << npusch_user << std::endl;
+          std::cout << "|Used subframes |" << npusch_user << std::endl;
+          std::cout << "|Total subframes|" << npusch_subframe << std::endl;
+          std::cout << "|Efficiency     |" << ((double)npusch_user/(double)npusch_subframe)*100 << "%" << std::endl;
+          std::cout << "--------------------------------------------------" << std::endl;
+          npusch_user= npusch_subframe = sch_ue = 0;
+        }
+        else if(channel == 1)
+        {
+          std::cout << "------------NPDSCH Statistical Results------------" << std::endl;
+          std::cout << "|UEs            |" << sch_ue << std::endl;
+          std::cout << "|MIB-NB         |" << npdsch_mib << std::endl;
+          std::cout << "|SIB1-NB        |" << npdsch_sib1 << std::endl;
+          std::cout << "|NPSS           |" << npdsch_npss << std::endl;
+          std::cout << "|NSSS           |" << npdsch_nsss << std::endl;
+          std::cout << "|NPDSCH         |" << npdsch_user << std::endl;
+          std::cout << "|Used subframes |" << npdsch_mib+npdsch_sib1+npdsch_npss+npdsch_nsss+npdsch_user << std::endl;
+          std::cout << "|Total subframes|" << npdsch_subframe << std::endl;
+          std::cout << "|Efficiency     |" << ((double)(npdsch_mib+npdsch_sib1+npdsch_npss+npdsch_nsss+npdsch_user)/(double)npdsch_subframe)*100 << "%" << std::endl;
+          std::cout << "--------------------------------------------------" << std::endl;
+          npdsch_mib = npdsch_sib1 = npdsch_npss = npdsch_nsss = npdsch_user = npdsch_subframe = sch_ue = 0;
+        }
+        SCtrigger = false;
+      }
+    }
+    // for output results
+    else if(ch == 0)
+    {
+      npusch_subframe++;
+    }
+    else if(ch == 1)
+    {
+      if(m_subframeNo == 1)
+      {
+        npdsch_mib++;
+      }
+      else if(m_subframeNo == 6)
+      {
+        npdsch_npss++;
+      }
+      else if((m_frameNo-1)%2 == 0 && m_subframeNo == 10)
+      {
+        npdsch_nsss++;
+      }
+      else if(m_frameNo == sib1_frameNo && m_subframeNo == 5)
+      {
+        npdsch_sib1++;
+      }
+      npdsch_subframe++;
+    }
+  }
 
   // --- DOWNLINK ---
   // Send Dl-CQI info to the scheduler
@@ -597,6 +1078,698 @@ LteEnbMac::DoSubframeIndication (uint32_t frameNo, uint32_t subframeNo)
 
 }
 
+//for nb-iot
+// frameNo and subframeNo stand for current frame number
+// n_frameNo and n_subframeNo stand for next frame number
+// R stand for DCI repetition 
+// n stand for counting n-th DCI
+static int n = 1;
+void
+LteEnbMac::DoSearchSpace(uint32_t frameNo, uint32_t subframeNo, uint16_t rnti, int R)
+{
+  double tti = 0.00101;
+  uint32_t n_frameNo, n_subframeNo;
+
+  if(subframeNo == 10){
+    n_frameNo = frameNo+1;
+    n_subframeNo = 1;
+  }
+  else{
+    n_frameNo = frameNo;
+    n_subframeNo = subframeNo+1;
+  }
+
+  // cannot schedule in subframe = 1 (NS3) due to MIB
+  // cannot schedule in subframe = 6 (NS3) due to NPSS
+  // cannot schedule in subframe = 10 and odd frameNo (NS3) due to NSSS
+  if(subframeNo == 1)
+  {
+    Simulator::Schedule (Seconds (tti),
+                       &LteEnbMac::DoSearchSpace,
+                       this,
+                       n_frameNo,
+                       n_subframeNo,
+                       rnti,
+                       R);
+    npdcch_mib++;
+    npdcch_subframe++;
+  }
+  else if(subframeNo == 6)
+  {
+    Simulator::Schedule (Seconds (tti),
+                       &LteEnbMac::DoSearchSpace,
+                       this,
+                       n_frameNo,
+                       n_subframeNo,
+                       rnti,
+                       R);
+    npdcch_npss++;
+    npdcch_subframe++;
+  }
+  else if(subframeNo == 10 && (frameNo-1) % 2 == 0)
+  {
+    Simulator::Schedule (Seconds (tti),
+                       &LteEnbMac::DoSearchSpace,
+                       this,
+                       n_frameNo,
+                       n_subframeNo,
+                       rnti,
+                       R);
+    npdcch_nsss++;
+    npdcch_subframe++;
+  }
+  else if(subframeNo == 5 && frameNo == sib1_frameNo)
+  {
+    Simulator::Schedule (Seconds (tti),
+                       &LteEnbMac::DoSearchSpace,
+                       this,
+                       n_frameNo,
+                       n_subframeNo,
+                       rnti,
+                       R);
+    npdcch_sib1++;
+    npdcch_subframe++;
+  }
+  else
+  {
+    std::cout << "------------------------------------------------" << std::endl;
+    std::cout << "|  DCI(" << n << ") for RNTI: "  << rnti << " in frame " << frameNo << " subframe " << subframeNo << "  |" << std::endl;
+    std::cout << "------------------------------------------------" << std::endl;
+    n++;
+    npdcch_dci++;
+    npdcch_subframe++;
+
+    // if R = 1 mean that then current UE DCI scheduling is done
+    // CCtrigger = ture for scheduling DCI for next UE
+    if(R == 1)
+    {
+      n=1;
+      i_ue++;
+      i_offset++;
+      if(i_offset==4)
+      i_offset=0;
+      CCtrigger = true;
+      m_kb.push_back(10*frameNo+subframeNo);
+
+      // for nb-iot
+      // NPDCCH schedule 4 or less UEs in a NPDCCH period, scaleble 
+      // scheduling 4 UEs one time show the best performance of resource ultilization
+      // first erase scheduled 4 or less UEs in rnti table
+      // than we have to close NPDCCH and start NPDSCH
+      if(i_ue == int(m_rnti.size()))
+      {
+        std::cout << "i_ue: " << i_ue << std::endl;
+        std::cout << "m_rnti size: " << int(m_rnti.size()) << std::endl;
+        for(int i = 0;i<i_ue; i++)
+        {
+          // empty rnti
+          m_ue.push_back(m_rnti[0]);
+          std::cout << "rnti: " << m_ue[i] << std::endl;
+          m_rnti.erase(m_rnti.begin());
+          m_rep.erase(m_rep.begin());
+          m_startsf.erase(m_startsf.begin());
+          m_offset.erase(m_offset.begin());
+        }
+
+        std::cout << "------------NPDCCH Statistical Results------------" << std::endl;
+        std::cout << "|UEs            |" << i_ue << std::endl;
+        std::cout << "|MIB-NB         |" << npdcch_mib << std::endl;
+        std::cout << "|SIB1-NB        |" << npdcch_sib1 << std::endl;
+        std::cout << "|NPSS           |" << npdcch_npss << std::endl;
+        std::cout << "|NSSS           |" << npdcch_nsss << std::endl;
+        std::cout << "|DCI            |" << npdcch_dci << std::endl;
+        std::cout << "|Used subframes |" << npdcch_mib+npdcch_sib1+npdcch_npss+npdcch_nsss+npdcch_dci << std::endl;
+        std::cout << "|Total subframes|" << npdcch_subframe << std::endl;
+        std::cout << "|Efficiency     |" << ((double)(npdcch_mib+npdcch_sib1+npdcch_npss+npdcch_nsss+npdcch_dci)/(double)npdcch_subframe)*100 << "%" << std::endl;
+        std::cout << "--------------------------------------------------" << std::endl;
+        npdcch_mib = npdcch_sib1 = npdcch_npss = npdcch_nsss = npdcch_dci = npdcch_subframe = 0;
+        sch_ue = i_ue;
+        i_offset = 0;
+        i_ue = 0;
+        SCtrigger = true;
+        DoPreAllocation();
+      }
+
+      // if(i_ue == int(m_rnti.size()) && i_ue < 4)
+      // {
+      //   std::cout << "i_ue: " << i_ue << std::endl;
+      //   std::cout << "m_rnti size: " << int(m_rnti.size()) << std::endl;
+      //   for(int i = 0;i<i_ue; i++)
+      //   {
+      //     // empty rnti
+      //     m_ue.push_back(m_rnti[0]);
+      //     std::cout << "rnti: " << m_ue[i] << std::endl;
+      //     m_rnti.erase(m_rnti.begin());
+      //     m_rep.erase(m_rep.begin());
+      //     m_startsf.erase(m_startsf.begin());
+      //     m_offset.erase(m_offset.begin());
+      //   }
+
+      //   std::cout << "------------NPDCCH Statistical Results------------" << std::endl;
+      //   std::cout << "|UEs            |" << i_ue << std::endl;
+      //   std::cout << "|MIB-NB         |" << npdcch_mib << std::endl;
+      //   std::cout << "|SIB1-NB        |" << npdcch_sib1 << std::endl;
+      //   std::cout << "|NPSS           |" << npdcch_npss << std::endl;
+      //   std::cout << "|NSSS           |" << npdcch_nsss << std::endl;
+      //   std::cout << "|DCI            |" << npdcch_dci << std::endl;
+      //   std::cout << "|Used subframes |" << npdcch_mib+npdcch_sib1+npdcch_npss+npdcch_nsss+npdcch_dci << std::endl;
+      //   std::cout << "|Total subframes|" << npdcch_subframe << std::endl;
+      //   std::cout << "|Efficiency     |" << ((double)(npdcch_mib+npdcch_sib1+npdcch_npss+npdcch_nsss+npdcch_dci)/(double)npdcch_subframe)*100 << "%" << std::endl;
+      //   std::cout << "--------------------------------------------------" << std::endl;
+      //   npdcch_mib = npdcch_sib1 = npdcch_npss = npdcch_nsss = npdcch_dci = npdcch_subframe = 0;
+      //   sch_ue = i_ue;
+      //   i_offset = 0;
+      //   i_ue = 0;
+      //   SCtrigger = true;
+      //   DoPreAllocation();
+      // }
+      // else if(i_ue == 4)
+      // {
+      //   std::cout << "i_ue: " << i_ue << std::endl;
+      //   std::cout << "m_rnti size: " << int(m_rnti.size()) << std::endl;
+      //   for(int i = 0;i<i_ue; i++)
+      //   {
+      //     // empty rnti
+      //     m_ue.push_back(m_rnti[0]);
+      //     std::cout << "rnti: " << m_ue[i] << std::endl;
+      //     m_rnti.erase(m_rnti.begin());
+      //     m_rep.erase(m_rep.begin());
+      //     m_startsf.erase(m_startsf.begin());
+      //     m_offset.erase(m_offset.begin());
+      //   }
+
+      //   std::cout << "------------NPDCCH Statistical Results------------" << std::endl;
+      //   std::cout << "|UEs            |" << i_ue << std::endl;
+      //   std::cout << "|MIB-NB         |" << npdcch_mib << std::endl;
+      //   std::cout << "|SIB1-NB        |" << npdcch_sib1 << std::endl;
+      //   std::cout << "|NPSS           |" << npdcch_npss << std::endl;
+      //   std::cout << "|NSSS           |" << npdcch_nsss << std::endl;
+      //   std::cout << "|DCI            |" << npdcch_dci << std::endl;
+      //   std::cout << "|Used subframes |" << npdcch_mib+npdcch_sib1+npdcch_npss+npdcch_nsss+npdcch_dci << std::endl;
+      //   std::cout << "|Total subframes|" << npdcch_subframe << std::endl;
+      //   std::cout << "|Efficiency     |" << ((double)(npdcch_mib+npdcch_sib1+npdcch_npss+npdcch_nsss+npdcch_dci)/(double)npdcch_subframe)*100 << "%" << std::endl;
+      //   std::cout << "--------------------------------------------------" << std::endl;
+      //   npdcch_mib = npdcch_sib1 = npdcch_npss = npdcch_nsss = npdcch_dci = npdcch_subframe = 0;
+      //   sch_ue = i_ue;
+      //   i_offset = 0;
+      //   i_ue = 0;
+      //   SCtrigger = true;
+      //   DoPreAllocation();
+      // }
+    }
+    else
+    {
+      Simulator::Schedule (Seconds (tti),
+                        &LteEnbMac::DoSearchSpace,
+                        this,
+                        n_frameNo,
+                        n_subframeNo,
+                        rnti,
+                        R-1);
+    }
+  }
+}
+
+// for nb-iot
+// the function for calculating scheduling delay of UEs
+void
+LteEnbMac::DoPreAllocation()
+{
+  NS_LOG_FUNCTION (this);
+  int ue = int(m_ue.size());
+  std::cout << "UE: " << ue << std::endl;
+  int delay1 = m_kb[ue-1]-m_kb[0]; // delay1 for the calculating the scheduling delay of the first UE
+  int k0[4] = {8, 16, 32, 64}; // NPUSCH scheduling delay candidates
+  int k1[8] = {0, 4, 8, 12, 16, 32, 64, 128}; // NPDSCH scheduling delay candidates
+  int i;
+  switch (channel)
+  {
+  case 0:
+    i = 0;   
+    if(delay1 < k0[i])
+    {
+      k0[i] = k0[0];
+    }
+    else
+    {
+      while(delay1 >= k0[i])
+      {
+        i++;
+      }
+    }
+
+    if(k0[i]>64)
+    {
+      std::cout<< "No fitted k (scheduling delay)" << std::endl;
+      break;
+    }
+    m_k.push_back(k0[i]);
+
+    for(int j=1;j<ue;j++)
+    {
+      int i=0;
+      while( (m_kb[j-1]+m_k[j-1]) >= (m_kb[j]+k0[i]) )
+      {
+        i++;
+      }
+      if(k0[i]>64)
+      {
+        break;
+      }
+      m_k.push_back(k0[i]);
+    }
+    for (int k=0;k<ue;k++)
+    {
+      std::cout << "RNTI: "  << m_ue[k] << " scheduling delay k: " << m_k[k]  << " kb: " << m_kb[k] << std::endl;
+    }
+    break;
+  
+  case 1:
+    i = 0;
+    if(delay1 < k1[i]+5)
+    {
+      k1[i] = k1[0];
+    }
+    else
+    {
+      while(delay1 >= k1[i]+5)
+      {
+        i++;
+      }
+    }
+    if(k1[i]>128)
+    {
+      std::cout<< "No fitted k (scheduling delay)" << std::endl;
+      break;
+    }
+    m_k.push_back(k1[i]);
+    for(int j=1;j<ue;j++)
+    {
+      int i=0;
+      while( (m_kb[j-1]+m_k[j-1]+5) >= (m_kb[j]+k1[i]+5) )
+      {
+        i++;
+      }
+      if(k1[i]>128)
+      {
+        break;
+      }
+      m_k.push_back(k1[i]);
+    }
+    for (int k=0;k<ue;k++)
+    {
+      std::cout << "RNTI: "  << m_ue[k] << " scheduling delay k: " << m_k[k] << " kb: " << m_kb[k] << std::endl;
+    }
+    break;
+
+  default:
+    break;
+  }
+}
+
+void
+LteEnbMac::DoSearchSpace_msg4(uint32_t frameNo, uint32_t subframeNo, int u, int R)
+{
+  double tti = 0.001;
+  uint32_t ss_frameNo, ss_subframeNo;
+  uint32_t n_frameNo, n_subframeNo;
+
+  if(subframeNo == 10){
+    ss_frameNo = frameNo+1;
+    ss_subframeNo = 1;
+  }
+  else{
+    ss_frameNo = frameNo;
+    ss_subframeNo = subframeNo+1;
+  }
+
+  if(subframeNo+R > 10){
+    n_subframeNo = (subframeNo+R) % 10;
+    n_frameNo = frameNo + (subframeNo+R)/10;
+  }
+  else{
+    n_subframeNo = subframeNo+R;
+    n_frameNo = frameNo;
+  }
+
+  // if u == 0 then DCI scheduling is done
+  if(u == 0){
+    std::cout << "DCI for msg4 allocated" << std::endl;
+  }
+  // cannot schedule in subframe = 1 (NS3) due to MIB
+  else if((subframeNo == 1))
+  {
+    Simulator::Schedule (Seconds (tti),
+                       &LteEnbMac::DoSearchSpace_msg4,
+                       this,
+                       ss_frameNo,
+                       ss_subframeNo,
+                       u,
+                       R);
+  }
+  // cannot schedule in subframe = 6 (NS3) due to NPSS
+  else if((subframeNo == 6))
+  {
+    Simulator::Schedule (Seconds (tti),
+                       &LteEnbMac::DoSearchSpace_msg4,
+                       this,
+                       ss_frameNo,
+                       ss_subframeNo,
+                       u,
+                       R);
+  }
+  // cannot schedule in subframe = 10 and odd frameNo (NS3) due to NSSS
+  else if((subframeNo == 10) && ((frameNo % 2) == 1))
+  {
+    Simulator::Schedule (Seconds (tti),
+                       &LteEnbMac::DoSearchSpace_msg4,
+                       this,
+                       ss_frameNo,
+                       ss_subframeNo,
+                       u,
+                       R);
+  }
+  else{
+    // std::cout << "------------------------------------------" << std::endl;
+    // std::cout << "|  DCI for msg4 "  << " in frame " << frameNo << " subframe " << subframeNo << "  |" << std::endl;
+    // std::cout << "------------------------------------------" << std::endl;
+
+    Simulator::Schedule (Seconds (tti*R),
+                       &LteEnbMac::DoSearchSpace_msg4,
+                       this,
+                       n_frameNo,
+                       n_subframeNo,
+                       u-1,
+                       R);
+  }
+}
+
+static uint16_t msg4_rep;
+static uint16_t msg4_startsf;
+static uint16_t msg4_offset;
+
+//for nb-iot
+// this function for calculate which subframe for msg4 first DCI
+void
+LteEnbMac::DoSearchSpace_pre_msg4(uint32_t frameNo, uint32_t subframeNo)
+{
+  NS_LOG_FUNCTION (this);
+
+  double cond1,cond2;
+  int T,R;
+
+  if(msg4_rep == 1 || msg4_rep == 2 || msg4_rep == 4)
+      R = 1;
+  else
+      R = msg4_rep/8;
+  
+  while(true)
+  {
+    T = msg4_rep*msg4_startsf;
+    cond1 = (10*(frameNo-1)+(subframeNo-1)) % T;
+    cond2 = msg4_offset*T;
+
+    // std::cout << "u_frame " << u_frameNo << std::endl;
+    // std::cout << "u_subframe " << u_subframeNo << std::endl;
+    // std::cout << "cond1 " << cond1 << std::endl;
+    // std::cout << "cond2 " << cond2 << std::endl;
+
+    if(cond1 == cond2)
+    {
+      // Do search space is a function for real schedule DCI
+      // we have to sync dci_frameNo and u_frameNo(universal frameNo stand for current frameNo)
+      int sync_time;
+      sync_time = (10*frameNo+subframeNo)-(10*u_frameNo+u_subframeNo);
+      Simulator::Schedule (MilliSeconds (sync_time),
+                       &LteEnbMac::DoSearchSpace_msg4,
+                       this,
+                       frameNo,
+                       subframeNo,
+                       R,
+                       R);
+      //DoSearchSpace(frameNo, subframeNo, R, R, false);
+      std::cout << "DCI N1 (msg4) repetition times: " << R << std::endl;
+
+      break;
+    }
+    else
+    {
+      if(subframeNo == 10){
+        frameNo = frameNo+1;
+        subframeNo = 1;
+      }
+      else{
+        subframeNo = subframeNo+1;
+      }
+      //std::cout << "delay" << std::endl;
+    }
+    
+  }
+}
+
+//for nb-iot
+// when enb-rrc receive msg3 would trigger this
+// and input some parameter and frameNo
+void
+LteEnbMac::Sendmsg4Info(uint16_t rep, uint16_t startsf, double offset)
+{
+  msg4_rep = rep;
+  msg4_startsf = startsf;
+  msg4_offset = offset;
+  DoSearchSpace_pre_msg4(sch_frameNo, sch_subframeNo);
+}
+
+//for nb-iot
+// when enb-rrc receive msg3 would trigger this
+// this function calculate delay for what time enb-rrc send msg4
+// sch_frameNo and sch_subfrmaeNo stand for previous UE last allocated frameNo
+// so the frame between and u_frame and sch_frame cannot allocate resources 
+int
+LteEnbMac::DoConfigureRrcDelay(uint16_t rep, uint16_t startsf, double offset)
+{
+  NS_LOG_FUNCTION (this);
+  uint32_t frameNo, subframeNo;
+  uint32_t last_dci_frameNo, last_dci_subframeNo;
+  double cond1,cond2;
+  int dci_delay, dci_time;
+  int T,R;
+  dci_time = 0;
+  frameNo = sch_frameNo;
+  subframeNo = sch_subframeNo;
+  T = msg4_rep*msg4_startsf;
+
+  if(msg4_rep == 1 || msg4_rep == 2 || msg4_rep == 4)
+    R = 1;
+  else
+    R = msg4_rep/8;
+
+  while(true)
+  {
+    cond1 = (10*(frameNo-1)+(subframeNo-1)) % T;
+    cond2 = msg4_offset*T;
+
+    if(cond1 == cond2)
+    {
+      int i = 0;
+      last_dci_frameNo = frameNo;
+      last_dci_subframeNo = subframeNo;
+
+      dci_delay = (10*frameNo+subframeNo)-(10*u_frameNo+u_subframeNo);
+      
+      //std::cout << "(" << last_dci_frameNo << "," << last_dci_subframeNo << ")" << std::endl;
+
+      while(true)
+      {
+        if(last_dci_subframeNo == 1 || last_dci_subframeNo == 6 || (last_dci_subframeNo == 10 && last_dci_frameNo%2 == 1))
+        {
+          if(last_dci_subframeNo + 1 > 10)
+          {
+            last_dci_subframeNo = 1;
+            last_dci_frameNo = last_dci_frameNo + 1;
+          }
+          else
+          {
+            last_dci_subframeNo = last_dci_subframeNo + 1;
+          }
+        }
+        else
+        {
+          i++;
+          if(i == R)
+          {
+            break;
+          }
+          if(last_dci_subframeNo + R > 10)
+          {
+            last_dci_frameNo = last_dci_frameNo+1;
+            last_dci_subframeNo = last_dci_subframeNo+R-10;
+          }
+          else
+          {
+            last_dci_subframeNo = last_dci_subframeNo + R;
+          }
+        }
+      }
+
+      //std::cout << "(" << last_dci_frameNo << "," << last_dci_subframeNo << ")" << std::endl;
+
+      dci_time = (10*last_dci_frameNo + last_dci_subframeNo) - (10*frameNo + subframeNo);
+      break;
+    }
+    else
+    {
+      if(subframeNo == 10){
+        frameNo = frameNo+1;
+        subframeNo = 1;
+      }
+      else{
+        subframeNo = subframeNo+1;
+      }
+    }
+  }
+
+  DCI_N1 dci;
+  dci = DoConfigureDCI_N1(3, false);
+  //for nb-iot 
+  // next ue must wait the TIME between recv msg3(10*u_frameNo+u_subframeNo) and pervious UE send last harq feedback 
+  sch_frameNo = ((10*u_frameNo + u_subframeNo) + (dci_delay + dci_time) + 5 + dci.Scheduling_delay + (dci.Resource_assignment*dci.Repetition_number) + 13 - 1 + (4*2/2) + 1) /10;
+  sch_subframeNo = ((10*u_frameNo + u_subframeNo) + (dci_delay + dci_time) + 5 + dci.Scheduling_delay + (dci.Resource_assignment*dci.Repetition_number) + 13 - 1 + (4*2/2) + 1) %10;
+  std::cout << "msg3 coming frame: (" << u_frameNo << "," << u_subframeNo << ")" << std::endl;
+  std::cout << "last DCI frame: (" << last_dci_frameNo << "," << last_dci_subframeNo << ")" << std::endl;
+  std::cout << "msg4 last scheduled frame: (" << sch_frameNo << "," << sch_subframeNo << ")" << std::endl;
+
+  return dci_delay+dci_time;
+}
+
+std::vector<int>
+LteEnbMac::DoConfigureMsg4Info()
+{
+  NS_LOG_FUNCTION (this);
+  DCI_N1 dci;
+  std::vector<int> msg4_info;
+
+  dci = DoConfigureDCI_N1(3, false);
+  msg4_info.push_back(dci.Scheduling_delay);
+  msg4_info.push_back(dci.Resource_assignment);
+  msg4_info.push_back(dci.Repetition_number);
+
+  return msg4_info;
+}
+
+//for nb-iot
+LteEnbMac::DCI_N0
+LteEnbMac::DoConfigureDCI_N0(int CE)
+{
+  DCI_N0 dci;
+  if(CE == 0)
+  {
+    dci.Scheduling_delay = 8;
+    dci.Resource_assignment = 2;
+    dci.Repetition_number = 2;
+  }
+  else if(CE == 1)
+  {
+    dci.Scheduling_delay = 16;
+    dci.Resource_assignment = 4;
+    dci.Repetition_number = 8;
+  }
+  else if(CE == 2)
+  {
+    dci.Scheduling_delay = 32;
+    dci.Resource_assignment = 6;
+    dci.Repetition_number = 32;
+  }
+
+  return dci;
+}
+
+//for nb-iot
+// 3 for msg4 , other normal 
+LteEnbMac::DCI_N1
+LteEnbMac::DoConfigureDCI_N1(int CE, bool flag)
+{
+  DCI_N1 dci;
+  if(CE == 3 && flag == false)
+  {
+    dci.Scheduling_delay = 0;
+    dci.Resource_assignment = 2;
+    dci.Repetition_number = 4;
+  }
+
+  return dci;
+}
+
+void
+LteEnbMac::SIB1Indication (uint32_t m_nrFrames)
+{
+  NS_LOG_FUNCTION (this);
+  sib1_frameNo = m_nrFrames;
+  std::cout << "SIB1 FrameNo: " << sib1_frameNo << std::endl;
+}
+
+//for nb-iot
+//senduepara would do multiple times no how
+//so we have to check whether there is repeat rnti 
+void
+LteEnbMac::SendUePara(uint16_t rnti, int rep, int startsf, double offset)
+{
+  int c = 0;
+  NS_LOG_FUNCTION (this);
+  for(int i=0; i<int(m_rnti.size()); i++){
+    if(m_rnti[i] == rnti){
+      c = 1;
+      std::cout << "RNTI: " << m_rnti[i] << " existed..." << std::endl;
+    }
+  }
+  std::cout << "rnti: " << rnti << " rep: " << rep << " startsf: " << startsf << " offset: " << offset << std::endl;
+  if(c == 0){
+    m_rnti.push_back(rnti);
+    m_rep.push_back(rep);
+    m_startsf.push_back(startsf);
+    m_offset.push_back(offset);
+    // check whether there is rnti in the queue 
+    // if not empty, trigger the scheduler for search space
+    std::cout << "rnti: " << rnti << " Queuing..." << std::endl;
+    if(int(m_rnti.size()) == 1)
+    {
+      CCtrigger = true;
+    }
+  }
+}
+
+void
+LteEnbMac::SetChannel(int ch)
+{
+   NS_LOG_FUNCTION (this);
+   channel = ch;
+}
+
+void
+LteEnbMac::SetRepetition(int R)
+{
+  NS_LOG_FUNCTION (this);
+  m_R = R;
+}
+
+void
+LteEnbMac::SetAlpha(int alpha)
+{
+  NS_LOG_FUNCTION (this);
+  if(alpha == 0)
+  {
+    offset[0] = (double)0;
+    offset[1] = (double)1/8;
+    offset[2] = (double)2/8;
+    offset[3] = (double)3/8;
+  }
+  else
+  {
+    offset[0] = (double)0;
+    offset[1] = (double)0;
+    offset[2] = (double)0;
+    offset[3] = (double)0;
+  }
+}
 
 void
 LteEnbMac::DoReceiveLteControlMessage  (Ptr<LteControlMessage> msg)
@@ -737,6 +1910,7 @@ LteEnbMac::DoConfigureMac (uint8_t ulBandwidth, uint8_t dlBandwidth)
   params.m_ulBandwidth = ulBandwidth;
   params.m_dlBandwidth = dlBandwidth;
   m_macChTtiDelay = m_enbPhySapProvider->GetMacChTtiDelay ();
+  std::cout << "[myprint] TTI: " << int(m_macChTtiDelay) << std::endl;
   // ...more parameters can be configured
   m_cschedSapProvider->CschedCellConfigReq (params);
 }
@@ -878,7 +2052,61 @@ LteEnbMac::DoGetRachConfig ()
   rc.numberOfRaPreambles = m_numberOfRaPreambles;
   rc.preambleTransMax = m_preambleTransMax;
   rc.raResponseWindowSize = m_raResponseWindowSize;
+
+  //for NB-IoT
+  //for repetitions
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_0.numRepetitionsPerPreambleAttempt_r13 = 2;
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_1.numRepetitionsPerPreambleAttempt_r13 = 8;
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_2.numRepetitionsPerPreambleAttempt_r13 = 32;
+  //for maxTransmissionNum
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_0.maxNumPreambleAttempt_r13 = 3;
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_1.maxNumPreambleAttempt_r13 = 3;
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_2.maxNumPreambleAttempt_r13 = 3;
+  //for periodicity
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_0.periodicity_r13 = 40;
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_1.periodicity_r13 = 160;
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_2.periodicity_r13 = 640;
+  //for startTime
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_0.startTime_r13 = 8;
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_1.startTime_r13 = 32;
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_2.startTime_r13 = 256;
+
+  //for NPDCCH-numRepetitions-RA
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_0.npdcch_numRepetitions_RA_r13 = 4;
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_1.npdcch_numRepetitions_RA_r13 = 32;
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_2.npdcch_numRepetitions_RA_r13 = 256;
+
+  //for NPDCCH-startSF-CSS-RA
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_0.npdcch_StartSF_CSS_RA_r13 = 2;
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_1.npdcch_StartSF_CSS_RA_r13 = 2;
+  rc.nprachConfig.nprach_ConfigSIB.nprach_ParametersList.CE_2.npdcch_StartSF_CSS_RA_r13 = 2;
+
+  //for NRSRP thresholds
+  rc.nprachConfig.nprach_ConfigSIB.rsrp_ThresholdsPrachInfoList.NRSRP_thresholds_first_value = 3;
+  rc.nprachConfig.nprach_ConfigSIB.rsrp_ThresholdsPrachInfoList.NRSRP_thresholds_second_value = 13;
+
   return rc;
+}
+
+//for nb-iot
+LteEnbCmacSapProvider::NpdcchConfig
+LteEnbMac::DoGetNpdcchConfig ()
+{
+  struct LteEnbCmacSapProvider::NpdcchConfig nc;
+  
+  nc.npdcch_ParametersList.CELV0.npdcch_NumRepetitions = 4;
+  nc.npdcch_ParametersList.CELV1.npdcch_NumRepetitions = 32;
+  nc.npdcch_ParametersList.CELV2.npdcch_NumRepetitions = 256;
+  
+  nc.npdcch_ParametersList.CELV0.npdcch_StartSF_USS = 2;
+  nc.npdcch_ParametersList.CELV1.npdcch_StartSF_USS = 2;
+  nc.npdcch_ParametersList.CELV2.npdcch_StartSF_USS = 2;
+
+  nc.npdcch_ParametersList.CELV0.npdcch_Offset_USS = 0;
+  nc.npdcch_ParametersList.CELV1.npdcch_Offset_USS = 0;
+  nc.npdcch_ParametersList.CELV2.npdcch_Offset_USS = 0;
+
+  return nc;
 }
  
 LteEnbCmacSapProvider::AllocateNcRaPreambleReturnValue 

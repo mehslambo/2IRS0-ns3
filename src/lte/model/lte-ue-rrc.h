@@ -34,6 +34,9 @@
 #include <map>
 #include <set>
 
+//for nb-iot
+#include <ns3/lte-enb-rrc.h>
+
 namespace ns3 {
 
 
@@ -291,9 +294,11 @@ public:
     (uint64_t imsi, uint16_t cellId, uint16_t rnti,
      State oldState, State newState);
 
+  //for nb-iot
+  // recv parameters for msg4 scheduling from ue_mac
+  void msg4para(uint16_t rep, uint16_t startsf, double offset);
 
 private:
-
 
   // PDCP SAP methods
   void DoReceivePdcpSdu (LtePdcpSapUser::ReceivePdcpSduParameters params);
@@ -508,7 +513,96 @@ private:
   void SendMeasurementReport (uint8_t measId);
 
   void ApplyRadioResourceConfigDedicated (LteRrcSap::RadioResourceConfigDedicated rrcd);
+  
   void StartConnection ();
+
+  //for nb-iot
+  void ReportEnbCE (LteUeCmacSapProvider::NpdcchConfig nc);
+  void CalculatePara(uint64_t imsi, uint16_t rnti, int judge_ce_level, LteUeCmacSapProvider::NpdcchConfig nc);
+
+  int m_rep;
+  int m_startsf;
+  double m_offset;
+
+  
+  
+  //-------------------NB-IoT content----------------------------------------------------
+
+  //RSRP measured by UE
+  double RSRP_dbm;
+
+  //Numbers of UE
+  int number_of_UE;
+
+  //thresholds for NRSRP
+  int NRSRP_thresholds_first;
+  int NRSRP_thresholds_second;
+
+  //Judged CE levels for UEs
+  int UE_Judged_CE_level;
+
+  //repetition for preamble adapted by UE
+  int repetitionOfPreamble_UE;
+
+  //Max numbers of preamble transmission attempt
+  int preambleTransmissionAttempt_UE;
+
+  //periodicity
+  int periodicity_UE;
+
+  //startTime
+  int startTime_UE;
+
+  //Configurations for different NPRACH enhancement coverage levels
+  LteUeCmacSapProvider::RachConfig NB_rc;
+
+  //for nb-iot
+  LteUeCmacSapProvider::NpdcchConfig NB_nc;
+
+  typedef struct NPRACH_CE_0{
+     int maxNumPreambleAttempt_r13;
+     int numRepetitionsPerPreambleAttempt_r13;
+     int periodicity_r13;
+     int startTime_r13;
+     int npdcch_numRepetitions_RA_r13;
+     int npdcch_StartSF_CSS_RA_r13;
+  }CE_0;
+
+  typedef struct NPRACH_CE_1{
+     int maxNumPreambleAttempt_r13;
+     int numRepetitionsPerPreambleAttempt_r13;
+     int periodicity_r13;
+     int startTime_r13;
+     int npdcch_numRepetitions_RA_r13;
+     int npdcch_StartSF_CSS_RA_r13;
+  }CE_1;
+  
+  typedef struct NPRACH_CE_2{
+     int maxNumPreambleAttempt_r13;
+     int numRepetitionsPerPreambleAttempt_r13;
+     int periodicity_r13;
+     int startTime_r13;
+     int npdcch_numRepetitions_RA_r13;
+     int npdcch_StartSF_CSS_RA_r13;
+  }CE_2;
+  
+  CE_0 CE_0_object;
+  CE_1 CE_1_object;
+  CE_2 CE_2_object;
+
+
+  // assume the UE had received and decoded the SIB2 and got the related parameters
+  void SIB2_parameters ();
+
+  // for mapping the measured quantity value to the NRSRP reported value
+  int getNRSRP_Reported_value(double rsrp);
+
+  // for setting the CE level of the UE through the NRSRP Reported_value and NRSRP_thresholds in SIB2
+  void judgeEnhancementCoverageLevel(int NRSRP_Reported_value);
+
+
+  //-------------------NB-IoT content----------------------------------------------------
+  
   void LeaveConnectedMode ();
   void DisposeOldSrb1 ();
   uint8_t Bid2Drbid (uint8_t bid);
@@ -534,6 +628,12 @@ private:
 
   LteAsSapProvider* m_asSapProvider;
   LteAsSapUser* m_asSapUser;
+
+  LteEnbRrc* enb_rrc = new LteEnbRrc;
+  LteEnbMac* enb_mac = new LteEnbMac;
+
+  //for nb-iot
+
 
   /// The current UE RRC state.
   State m_state;

@@ -97,6 +97,7 @@ LteUeRrcProtocolIdeal::DoSetup (LteUeRrcSapUser::SetupParameters params)
 void 
 LteUeRrcProtocolIdeal::DoSendRrcConnectionRequest (LteRrcSap::RrcConnectionRequest msg)
 {
+  NS_LOG_FUNCTION (this);
   // initialize the RNTI and get the EnbLteRrcSapProvider for the
   // eNB we are currently attached to
   m_rnti = m_rrc->GetRnti ();
@@ -163,6 +164,17 @@ LteUeRrcProtocolIdeal::DoSendMeasurementReport (LteRrcSap::MeasurementReport msg
                         m_rnti, 
                         msg);
 }
+
+//for nb-iot
+// void
+// LteUeRrcProtocolIdeal::DoSendCE (uint64_t m_imsi, uint16_t m_rnti, int m_judge_ce_level)
+// {
+//   Simulator::Schedule (RRC_IDEAL_MSG_DELAY,
+//                        &LteEnbRrcSapProvider::RecvCE,
+//                        m_imsi,
+//                        m_rnti,
+//                        m_judge_ce_level);
+// }
 
 void 
 LteUeRrcProtocolIdeal::SetEnbRrcSapProvider ()
@@ -325,6 +337,7 @@ LteEnbRrcProtocolIdeal::DoRemoveUe (uint16_t rnti)
 void 
 LteEnbRrcProtocolIdeal::DoSendSystemInformation (LteRrcSap::SystemInformation msg)
 {
+  std::cout << "idealiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii" << std::endl;
   NS_LOG_FUNCTION (this << m_cellId);
   // walk list of all nodes to get UEs with this cellId
   Ptr<LteUeRrc> ueRrc;

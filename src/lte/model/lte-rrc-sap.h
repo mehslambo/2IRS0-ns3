@@ -25,6 +25,7 @@
 
 #include <stdint.h>
 #include <list>
+#include <typeinfo>
 
 #include <ns3/ptr.h>
 #include <ns3/simulator.h>
@@ -220,6 +221,87 @@ public:
     LogicalChannelConfig logicalChannelConfig;
   };
 
+  //for nb-iot
+  // these parameter is for msg4 scheduling
+  struct NPRACH_Parameters_NB_r13
+  {
+    uint16_t npdcch_NumRepetitions_RA_r13;
+    uint16_t npdcch_StartSF_CSS_RA_r13;
+    double npdcch_Offset_RA_r13;
+  };
+
+  //for NB-IoT
+  struct EnhancementCoverageLevel_0_Info{
+    int numRepetitionsPerPreambleAttempt_r13;
+    int maxNumPreambleAttempt_r13;
+    int periodicity_r13;
+    int startTime_r13;
+    int npdcch_numRepetitions_RA_r13;
+    int npdcch_StartSF_CSS_RA_r13;
+  };
+
+  struct EnhancementCoverageLevel_1_Info{
+    int numRepetitionsPerPreambleAttempt_r13;
+    int maxNumPreambleAttempt_r13;
+    int periodicity_r13;
+    int startTime_r13;
+    int npdcch_numRepetitions_RA_r13;
+    int npdcch_StartSF_CSS_RA_r13;
+  };
+
+  struct EnhancementCoverageLevel_2_Info{
+    int numRepetitionsPerPreambleAttempt_r13;
+    int maxNumPreambleAttempt_r13;
+    int periodicity_r13;
+    int startTime_r13;
+    int npdcch_numRepetitions_RA_r13;
+    int npdcch_StartSF_CSS_RA_r13;
+  };
+
+  //for nb_iot
+  struct CELV0_Info{
+    int npdcch_NumRepetitions;
+    int npdcch_StartSF_USS;
+    double npdcch_Offset_USS;
+  };
+
+  struct CELV1_Info{
+    int npdcch_NumRepetitions;
+    int npdcch_StartSF_USS;
+    double npdcch_Offset_USS;
+  };
+
+  struct CELV2_Info{
+    int npdcch_NumRepetitions;
+    int npdcch_StartSF_USS;
+    double npdcch_Offset_USS;
+  };
+
+  struct NPRACH_ParametersList_NB_r13{
+    //for NB-IoT
+    EnhancementCoverageLevel_0_Info CE_0_Info;
+    EnhancementCoverageLevel_1_Info CE_1_Info;
+    EnhancementCoverageLevel_2_Info CE_2_Info;
+  };
+
+  //for nb-iot
+  struct NPDCCH_ParametersList_NB_r13{
+    CELV0_Info CELV0;
+    CELV1_Info CELV1;
+    CELV2_Info CELV2;
+  };
+
+  struct RSRP_ThresholdsNPRACH_InfoList_NB_r13{
+    int NRSRP_thresholds_first;
+    int NRSRP_thresholds_second;
+  };
+
+  struct NPRACH_ConfigSIB_NB_r13{
+    enum nprach_CP_Length_r13{us66dot7, us266dot7};
+    RSRP_ThresholdsNPRACH_InfoList_NB_r13 rsrp_ThresholdsPrachInfoList_r13;
+    NPRACH_ParametersList_NB_r13 NPRACH_ParametersList_r13;
+  };
+
   struct PreambleInfo
   {
     uint8_t numberOfRaPreambles;
@@ -231,10 +313,29 @@ public:
     uint8_t raResponseWindowSize;
   };
 
+  //for NB-IoT
+  struct NprachConfig{
+    NPRACH_ConfigSIB_NB_r13 nprach_ConfigSIB_NB_r13;
+  };
+
+  //for nb-iot
+  struct NpdcchConfig{
+    NPDCCH_ParametersList_NB_r13 NPDCCH_ParametersList;
+  };
+
   struct RachConfigCommon
   {
     PreambleInfo preambleInfo;
     RaSupervisionInfo raSupervisionInfo;
+
+    //for NB-IoT
+    NprachConfig nprachConfig;
+  };
+
+  //for nb-iot
+  struct NpdcchConfigCommon
+  {
+    NpdcchConfig npdcchConfig;
   };
 
   struct RadioResourceConfigCommon
@@ -246,6 +347,9 @@ public:
   {
     RachConfigCommon rachConfigCommon;
     PdschConfigCommon pdschConfigCommon;
+
+    //for nb-iot
+    NpdcchConfigCommon npdcchConfigCommon;
   };
 
   struct RadioResourceConfigDedicated
@@ -519,10 +623,21 @@ public:
     OTHER_FAILURE
   };
 
+  //for nb-iot
+  // in nb-iot we schedule sib1 by periodicity not regular subframe
+  // so we have to add some parameters to indicate
+  
+  struct SchedulingInfoSIB1
+  {
+    uint16_t periodicity;
+    uint16_t pcid;
+  };
+
   struct MasterInformationBlock
   {
     uint8_t dlBandwidth;
     uint8_t systemFrameNumber;
+    SchedulingInfoSIB1 schedulinginfosib1_r13;
   };
 
   struct SystemInformationBlockType1
@@ -591,6 +706,7 @@ public:
 
   struct RrcConnectionSetup
   {
+    int msg4_rep;
     uint8_t rrcTransactionIdentifier;
     RadioResourceConfigDedicated radioResourceConfigDedicated;
   };
@@ -726,6 +842,9 @@ public:
    * \param msg the message
    */
   virtual void SendMeasurementReport (MeasurementReport msg) = 0;
+
+  //for nb-iot
+  //virtual void SendCE (uint64_t imsi, uint16_t rnti, int judge_ce_level) = 0;
 
 };
 
@@ -970,6 +1089,9 @@ public:
    */
   virtual void RecvMeasurementReport (uint16_t rnti, MeasurementReport msg) = 0;
 
+  //for nb-iot
+  // virtual void RecvCE (uint64_t imsi, uint16_t rnti, int judge_ce_level) = 0;
+
 };
 
 
@@ -1001,6 +1123,8 @@ public:
   virtual void SendRrcConnectionReestablishmentRequest (RrcConnectionReestablishmentRequest msg);
   virtual void SendRrcConnectionReestablishmentComplete (RrcConnectionReestablishmentComplete msg);
   virtual void SendMeasurementReport (MeasurementReport msg);
+  //for nb-iot
+  //virtual void SendCE(uint64_t imsi, uint16_t rnti, int judge_ce_level);
 
 private:
   MemberLteUeRrcSapUser ();
@@ -1011,11 +1135,17 @@ template <class C>
 MemberLteUeRrcSapUser<C>::MemberLteUeRrcSapUser (C* owner)
   : m_owner (owner)
 {
+  //C object;
+  std::cout << "[myprint]" << std::endl;
+  std::cout << typeid(*m_owner).name() << std::endl;
 }
 
 template <class C>
 MemberLteUeRrcSapUser<C>::MemberLteUeRrcSapUser ()
 {
+  //C object;
+  std::cout << "[myprint]" << std::endl;
+  std::cout << typeid(*m_owner).name() << std::endl;
 }
 
 template <class C>
@@ -1066,6 +1196,14 @@ MemberLteUeRrcSapUser<C>::SendMeasurementReport (MeasurementReport msg)
 {
   m_owner->DoSendMeasurementReport (msg);
 }
+
+//for nb-iot
+// template <class C>
+// void
+// MemberLteUeRrcSapUser<C>::SendCE (uint64_t imsi, uint16_t rnti, int judge_ce_level)
+// {
+//   m_owner->DoSendCE (imsi, rnti, judge_ce_level);
+// }
 
 /**
  * Template for the implementation of the LteUeRrcSapProvider as a member
@@ -1316,6 +1454,8 @@ public:
   virtual void RecvRrcConnectionReestablishmentRequest (uint16_t rnti, RrcConnectionReestablishmentRequest msg);
   virtual void RecvRrcConnectionReestablishmentComplete (uint16_t rnti, RrcConnectionReestablishmentComplete msg);
   virtual void RecvMeasurementReport (uint16_t rnti, MeasurementReport msg);
+  //for nb-iot
+  // virtual void RecvCE(uint64_t imsi, uint16_t rnti, int judge_ce_level);
 
 private:
   MemberLteEnbRrcSapProvider ();
@@ -1382,15 +1522,13 @@ MemberLteEnbRrcSapProvider<C>::RecvMeasurementReport (uint16_t rnti, Measurement
   Simulator::ScheduleNow (&C::DoRecvMeasurementReport, m_owner, rnti, msg);
 }
 
-
-
-
-
-
-
-
-
-
+//for nb-iot
+// template <class C>
+// void
+// MemberLteEnbRrcSapProvider<C>::RecvCE (uint64_t imsi, uint16_t rnti, int judge_ce_level)
+// {
+//   Simulator::ScheduleNow (&C::DoRecvCE, m_owner, imsi, rnti, judge_ce_level);
+// }
 
 
 

@@ -252,13 +252,11 @@ public:
    * \param rapid the RAPID
    */
   void SetRapId (uint32_t rapid);
-  
   /** 
    * 
    * \return the RAPID
    */
   uint32_t GetRapId () const;
-
 private:
   uint32_t m_rapId;
 

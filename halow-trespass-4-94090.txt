@@ -1,0 +1,954 @@
+Waf: Entering directory `/home/pverhoev/ns3/Protocol_comparison/ns3-halow/build'
+Waf: Leaving directory `/home/pverhoev/ns3/Protocol_comparison/ns3-halow/build'
+Build commands will be stored in build/compile_commands.json
+'build' finished successfully (0.605s)
+Configuring trace sources...
+Arp Cache: Adding the pair (00:00:00:00:00:01,192.168.0.1)
+Arp Cache: Adding the pair (00:00:00:00:00:02,192.168.0.2)
+Arp Cache: Adding the pair (00:00:00:00:00:03,192.168.0.3)
+Arp Cache: Adding the pair (00:00:00:00:00:04,192.168.0.4)
+Arp Cache: Adding the pair (00:00:00:00:00:05,192.168.0.5)
+Arp Cache: Adding the pair (00:00:00:00:00:06,192.168.0.6)
+Arp Cache: Adding the pair (00:00:00:00:00:07,192.168.0.7)
+Arp Cache: Adding the pair (00:00:00:00:00:08,192.168.0.8)
+Arp Cache: Adding the pair (00:00:00:00:00:09,192.168.0.9)
+Arp Cache: Adding the pair (00:00:00:00:00:0a,192.168.0.10)
+Arp Cache: Adding the pair (00:00:00:00:00:0b,192.168.0.11)
+Arp Cache: Adding the pair (00:00:00:00:00:0c,192.168.0.12)
+Arp Cache: Adding the pair (00:00:00:00:00:0d,192.168.0.13)
+Arp Cache: Adding the pair (00:00:00:00:00:0e,192.168.0.14)
+Arp Cache: Adding the pair (00:00:00:00:00:0f,192.168.0.15)
+Arp Cache: Adding the pair (00:00:00:00:00:10,192.168.0.16)
+Arp Cache: Adding the pair (00:00:00:00:00:11,192.168.0.17)
+Configuring STA Node trace sources...
+Hooking up trace sources for STA 0
+Hooking up trace sources for STA 1
+Hooking up trace sources for STA 2
+Hooking up trace sources for STA 3
+Hooking up trace sources for STA 4
+Hooking up trace sources for STA 5
+Hooking up trace sources for STA 6
+Hooking up trace sources for STA 7
+Hooking up trace sources for STA 8
+Hooking up trace sources for STA 9
+Hooking up trace sources for STA 10
+Hooking up trace sources for STA 11
+Hooking up trace sources for STA 12
+Hooking up trace sources for STA 13
+Hooking up trace sources for STA 14
+Hooking up trace sources for STA 15
+Sta node#0, position = 0:0:0
+Sta node#1, position = 0:0:0
+Sta node#2, position = 0:0:0
+Sta node#3, position = 0:0:0
+Sta node#4, position = 0:0:0
+Sta node#5, position = 0:0:0
+Sta node#6, position = 0:0:0
+Sta node#7, position = 0:0:0
+Sta node#8, position = 0:0:0
+Sta node#9, position = 0:0:0
+Sta node#10, position = 0:0:0
+Sta node#11, position = 0:0:0
+Sta node#12, position = 0:0:0
+Sta node#13, position = 0:0:0
+Sta node#14, position = 0:0:0
+Sta node#15, position = 0:0:0
+AP node, position = 650:650:3
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+00:00:00:00:00:11 GetSupportedRates 
+00:00:00:00:00:11, GetChannelWidth 0
+Node 2 is associated and has aid 3
+00:00:00:00:00:03, receive 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+00:00:00:00:00:11 GetSupportedRates 
+00:00:00:00:00:11, GetChannelWidth 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+00:00:00:00:00:11 GetSupportedRates 
+00:00:00:00:00:11, GetChannelWidth 0
+Node 11 is associated and has aid 12
+00:00:00:00:00:0c, receive 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+00:00:00:00:00:11 GetSupportedRates 
+00:00:00:00:00:11, GetChannelWidth 0
+Node 9 is associated and has aid 10
+00:00:00:00:00:0a, receive 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+00:00:00:00:00:11 GetSupportedRates 
+00:00:00:00:00:11, GetChannelWidth 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+00:00:00:00:00:11 GetSupportedRates 
+00:00:00:00:00:11, GetChannelWidth 0
+Node 1 is associated and has aid 2
+00:00:00:00:00:02, receive 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+Node 6 is associated and has aid 7
+00:00:00:00:00:07, receive 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+00:00:00:00:00:11 GetSupportedRates 
+00:00:00:00:00:11, GetChannelWidth 0
+Node 13 is associated and has aid 14
+00:00:00:00:00:0e, receive 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+Node 4 is associated and has aid 5
+00:00:00:00:00:05, receive 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+00:00:00:00:00:11 GetSupportedRates 
+00:00:00:00:00:11, GetChannelWidth 0
+Node 15 is associated and has aid 16
+00:00:00:00:00:10, receive 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+00:00:00:00:00:11 GetSupportedRates 
+00:00:00:00:00:11, GetChannelWidth 0
+Node 3 is associated and has aid 4
+00:00:00:00:00:04, receive 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+00:00:00:00:00:11 GetSupportedRates 
+00:00:00:00:00:11, GetChannelWidth 0
+Node 10 is associated and has aid 11
+00:00:00:00:00:0b, receive 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+00:00:00:00:00:11 GetSupportedRates 
+00:00:00:00:00:11, GetChannelWidth 0
+Node 5 is associated and has aid 6
+00:00:00:00:00:06, receive 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+00:00:00:00:00:11 GetSupportedRates 
+00:00:00:00:00:11, GetChannelWidth 0
+Node 0 is associated and has aid 1
+00:00:00:00:00:01, receive 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+00:00:00:00:00:11 GetSupportedRates 
+00:00:00:00:00:11, GetChannelWidth 0
+Node 12 is associated and has aid 13
+00:00:00:00:00:0d, receive 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+00:00:00:00:00:11 GetSupportedRates 
+00:00:00:00:00:11, GetChannelWidth 0
+Node 14 is associated and has aid 15
+00:00:00:00:00:0f, receive 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+00:00:00:00:00:11 GetSupportedRates 
+00:00:00:00:00:11, GetChannelWidth 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+00:00:00:00:00:11 GetSupportedRates 
+00:00:00:00:00:11, GetChannelWidth 0
+Node 8 is associated and has aid 9
+00:00:00:00:00:09, receive 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+Node 7 is associated and has aid 8
+All 16 stations associated at 2020081, configuring clients & server
+00:00:00:00:00:08, receive 0
+,,m_wifiPhy->GetChannelWidth () 12
+..m_wifiPhy->GetChannelWidth () 1
+[4020] 0 Sending
+[4020] 1 Sending
+[4020] 2 Sending
+[4020] 3 Sending
+[4020] 4 Sending
+[4020] 5 Sending
+[4020] 6 Sending
+[4020] 7 Sending
+[4020] 8 Sending
+[4020] 9 Sending
+[4020] 10 Sending
+[4020] 11 Sending
+[4030] 03-06-c0:a8:00:02:01:c0 Received
+[4036] 03-06-c0:a8:00:09:01:c0 Received
+[4042] 03-06-c0:a8:00:03:01:c0 Received
+[4048] 03-06-c0:a8:00:08:01:c0 Received
+[4055] 03-06-c0:a8:00:05:01:c0 Received
+[4067] 03-06-c0:a8:00:0c:01:c0 Received
+[4073] 03-06-c0:a8:00:04:01:c0 Received
+[4079] 03-06-c0:a8:00:01:01:c0 Received
+[4085] 03-06-c0:a8:00:06:01:c0 Received
+[4097] 03-06-c0:a8:00:07:01:c0 Received
+[4113] 03-06-c0:a8:00:02:01:c0 Received
+[4119] 03-06-c0:a8:00:02:01:c0 Received
+[4125] 03-06-c0:a8:00:0b:01:c0 Received
+[4138] 03-06-c0:a8:00:09:01:c0 Received
+[4149] 03-06-c0:a8:00:03:01:c0 Received
+[4155] 03-06-c0:a8:00:03:01:c0 Received
+[4161] 03-06-c0:a8:00:09:01:c0 Received
+[4169] 03-06-c0:a8:00:08:01:c0 Received
+[4177] 03-06-c0:a8:00:05:01:c0 Received
+[4184] 03-06-c0:a8:00:0a:01:c0 Received
+[4195] 03-06-c0:a8:00:0c:01:c0 Received
+[4201] 03-06-c0:a8:00:05:01:c0 Received
+[4338] 03-06-c0:a8:00:07:01:c0 Received
+[4344] 03-06-c0:a8:00:06:01:c0 Received
+[4361] 03-06-c0:a8:00:05:01:c0 Received
+[4367] 03-06-c0:a8:00:06:01:c0 Received
+[4374] 03-06-c0:a8:00:08:01:c0 Received
+[4384] 03-06-c0:a8:00:0a:01:c0 Received
+[4390] 03-06-c0:a8:00:07:01:c0 Received
+[4402] 03-06-c0:a8:00:01:01:c0 Received
+[4438] 03-06-c0:a8:00:0c:01:c0 Received
+[4550] 03-06-c0:a8:00:0c:01:c0 Received
+[4564] 03-06-c0:a8:00:0c:01:c0 Received
+[4570] 03-06-c0:a8:00:05:01:c0 Received
+[4588] 03-06-c0:a8:00:0a:01:c0 Received
+[4600] 03-06-c0:a8:00:0b:01:c0 Received
+[4606] 03-06-c0:a8:00:04:01:c0 Received
+[4612] 03-06-c0:a8:00:03:01:c0 Received
+[4653] 03-06-c0:a8:00:03:01:c0 Received
+[4659] 03-06-c0:a8:00:02:01:c0 Received
+[4665] 03-06-c0:a8:00:0b:01:c0 Received
+[4671] 03-06-c0:a8:00:01:01:c0 Received
+[4677] 03-06-c0:a8:00:04:01:c0 Received
+[4683] 03-06-c0:a8:00:02:01:c0 Received
+[4689] 03-06-c0:a8:00:03:01:c0 Received
+[4695] 03-06-c0:a8:00:02:01:c0 Received
+[4701] 03-06-c0:a8:00:05:01:c0 Received
+[4708] 03-06-c0:a8:00:05:01:c0 Received
+[4755] 03-06-c0:a8:00:0a:01:c0 Received
+[4767] 03-06-c0:a8:00:04:01:c0 Received
+[4773] 03-06-c0:a8:00:01:01:c0 Received
+[4785] 03-06-c0:a8:00:02:01:c0 Received
+[4797] 03-06-c0:a8:00:01:01:c0 Received
+[4808] 03-06-c0:a8:00:04:01:c0 Received
+[4814] 03-06-c0:a8:00:08:01:c0 Received
+[4849] 03-06-c0:a8:00:0c:01:c0 Received
+[4856] 03-06-c0:a8:00:0c:01:c0 Received
+[4862] 03-06-c0:a8:00:06:01:c0 Received
+[4868] 03-06-c0:a8:00:06:01:c0 Received
+[4874] 03-06-c0:a8:00:0c:01:c0 Received
+[4880] 03-06-c0:a8:00:06:01:c0 Received
+[4888] 03-06-c0:a8:00:07:01:c0 Received
+[4894] 03-06-c0:a8:00:07:01:c0 Received
+[4900] 03-06-c0:a8:00:07:01:c0 Received
+[4922] 03-06-c0:a8:00:04:01:c0 Received
+[4928] 03-06-c0:a8:00:0a:01:c0 Received
+[4942] 03-06-c0:a8:00:0b:01:c0 Received
+[4949] 03-06-c0:a8:00:0c:01:c0 Received
+[4966] 03-06-c0:a8:00:05:01:c0 Received
+[4975] 03-06-c0:a8:00:01:01:c0 Received
+[4981] 03-06-c0:a8:00:05:01:c0 Received
+[4987] 03-06-c0:a8:00:05:01:c0 Received
+[4993] 03-06-c0:a8:00:05:01:c0 Received
+[5005] 03-06-c0:a8:00:02:01:c0 Received
+[5011] 03-06-c0:a8:00:0a:01:c0 Received
+[5017] 03-06-c0:a8:00:0c:01:c0 Received
+[5052] 03-06-c0:a8:00:08:01:c0 Received
+[5058] 03-06-c0:a8:00:01:01:c0 Received
+[5070] 03-06-c0:a8:00:08:01:c0 Received
+[5082] 03-06-c0:a8:00:03:01:c0 Received
+[5088] 03-06-c0:a8:00:0b:01:c0 Received
+[5094] 03-06-c0:a8:00:08:01:c0 Received
+[5100] 03-06-c0:a8:00:03:01:c0 Received
+[5106] 03-06-c0:a8:00:02:01:c0 Received
+[5158] 03-06-c0:a8:00:0a:01:c0 Received
+[5164] 03-06-c0:a8:00:0a:01:c0 Received
+[5170] 03-06-c0:a8:00:07:01:c0 Received
+[5176] 03-06-c0:a8:00:03:01:c0 Received
+[5182] 03-06-c0:a8:00:04:01:c0 Received
+[5197] 03-06-c0:a8:00:07:01:c0 Received
+[5203] 03-06-c0:a8:00:08:01:c0 Received
+[5215] 03-06-c0:a8:00:01:01:c0 Received
+[5221] 03-06-c0:a8:00:01:01:c0 Received
+[5256] 03-06-c0:a8:00:0b:01:c0 Received
+[5357] 03-06-c0:a8:00:0a:01:c0 Received
+[5363] 03-06-c0:a8:00:0a:01:c0 Received
+[5374] 03-06-c0:a8:00:01:01:c0 Received
+[5388] 03-06-c0:a8:00:0c:01:c0 Received
+[5394] 03-06-c0:a8:00:04:01:c0 Received
+[5406] 03-06-c0:a8:00:02:01:c0 Received
+[5412] 03-06-c0:a8:00:08:01:c0 Received
+[5418] 03-06-c0:a8:00:06:01:c0 Received
+[5430] 03-06-c0:a8:00:01:01:c0 Received
+[5465] 03-06-c0:a8:00:02:01:c0 Received
+[5471] 03-06-c0:a8:00:02:01:c0 Received
+[5483] 03-06-c0:a8:00:04:01:c0 Received
+[5489] 03-06-c0:a8:00:0c:01:c0 Received
+[5496] 03-06-c0:a8:00:0c:01:c0 Received
+[5502] 03-06-c0:a8:00:03:01:c0 Received
+[5508] 03-06-c0:a8:00:05:01:c0 Received
+[5514] 03-06-c0:a8:00:0c:01:c0 Received
+[5520] 03-06-c0:a8:00:05:01:c0 Received
+[5526] 03-06-c0:a8:00:03:01:c0 Received
+[5573] 03-06-c0:a8:00:0a:01:c0 Received
+[5579] 03-06-c0:a8:00:0c:01:c0 Received
+[5585] 03-06-c0:a8:00:05:01:c0 Received
+[5593] 03-06-c0:a8:00:05:01:c0 Received
+[5599] 03-06-c0:a8:00:0c:01:c0 Received
+[5605] 03-06-c0:a8:00:05:01:c0 Received
+[5611] 03-06-c0:a8:00:07:01:c0 Received
+[5617] 03-06-c0:a8:00:05:01:c0 Received
+[5623] 03-06-c0:a8:00:03:01:c0 Received
+[5635] 03-06-c0:a8:00:08:01:c0 Received
+[5670] 03-06-c0:a8:00:07:01:c0 Received
+[5676] 03-06-c0:a8:00:08:01:c0 Received
+[5682] 03-06-c0:a8:00:08:01:c0 Received
+[5688] 03-06-c0:a8:00:08:01:c0 Received
+[5694] 03-06-c0:a8:00:07:01:c0 Received
+[5700] 03-06-c0:a8:00:06:01:c0 Received
+[5712] 03-06-c0:a8:00:0a:01:c0 Received
+[5725] 03-06-c0:a8:00:08:01:c0 Received
+[5731] 03-06-c0:a8:00:07:01:c0 Received
+[5746] 03-06-c0:a8:00:07:01:c0 Received
+[5752] 03-06-c0:a8:00:0b:01:c0 Received
+[5769] 03-06-c0:a8:00:05:01:c0 Received
+[5775] 03-06-c0:a8:00:04:01:c0 Received
+[5780] 03-06-c0:a8:00:04:01:c0 Received
+[5791] 03-06-c0:a8:00:0c:01:c0 Received
+[5797] 03-06-c0:a8:00:0c:01:c0 Received
+[5803] 03-06-c0:a8:00:04:01:c0 Received
+[5809] 03-06-c0:a8:00:04:01:c0 Received
+[5815] 03-06-c0:a8:00:0a:01:c0 Received
+[5827] 03-06-c0:a8:00:03:01:c0 Received
+[5833] 03-06-c0:a8:00:03:01:c0 Received
+[5839] 03-06-c0:a8:00:03:01:c0 Received
+[5875] 03-06-c0:a8:00:0b:01:c0 Received
+[5887] 03-06-c0:a8:00:0b:01:c0 Received
+[5893] 03-06-c0:a8:00:0a:01:c0 Received
+[5899] 03-06-c0:a8:00:0a:01:c0 Received
+[5905] 03-06-c0:a8:00:0a:01:c0 Received
+[5911] 03-06-c0:a8:00:0b:01:c0 Received
+[5917] 03-06-c0:a8:00:03:01:c0 Received
+[5923] 03-06-c0:a8:00:04:01:c0 Received
+[5936] 03-06-c0:a8:00:04:01:c0 Received
+[5977] 03-06-c0:a8:00:08:01:c0 Received
+[5983] 03-06-c0:a8:00:02:01:c0 Received
+[5995] 03-06-c0:a8:00:06:01:c0 Received
+[6001] 03-06-c0:a8:00:08:01:c0 Received
+[6007] 03-06-c0:a8:00:08:01:c0 Received
+[6013] 03-06-c0:a8:00:05:01:c0 Received
+[6019] 03-06-c0:a8:00:02:01:c0 Received
+[6041] 03-06-c0:a8:00:06:01:c0 Received
+[6078] 03-06-c0:a8:00:03:01:c0 Received
+[6086] 03-06-c0:a8:00:03:01:c0 Received
+[6176] 03-06-c0:a8:00:03:01:c0 Received
+[6190] 03-06-c0:a8:00:02:01:c0 Received
+[6196] 03-06-c0:a8:00:07:01:c0 Received
+[6214] 03-06-c0:a8:00:05:01:c0 Received
+[6220] 03-06-c0:a8:00:06:01:c0 Received
+[6229] 03-06-c0:a8:00:03:01:c0 Received
+[6241] 03-06-c0:a8:00:05:01:c0 Received
+[6247] 03-06-c0:a8:00:06:01:c0 Received
+[6282] 03-06-c0:a8:00:07:01:c0 Received
+[6312] 03-06-c0:a8:00:07:01:c0 Received
+[6392] 03-06-c0:a8:00:01:01:c0 Received
+[6409] 03-06-c0:a8:00:01:01:c0 Received
+[6421] 03-06-c0:a8:00:03:01:c0 Received
+[6439] 03-06-c0:a8:00:01:01:c0 Received
+[6494] 03-06-c0:a8:00:02:01:c0 Received
+[6500] 03-06-c0:a8:00:02:01:c0 Received
+[6506] 03-06-c0:a8:00:02:01:c0 Received
+[6531] 03-06-c0:a8:00:02:01:c0 Received
+[6537] 03-06-c0:a8:00:02:01:c0 Received
+[6543] 03-06-c0:a8:00:02:01:c0 Received
+[6568] 03-06-c0:a8:00:04:01:c0 Received
+[6574] 03-06-c0:a8:00:04:01:c0 Received
+[6591] 03-06-c0:a8:00:03:01:c0 Received
+[6597] 03-06-c0:a8:00:04:01:c0 Received
+[6606] 03-06-c0:a8:00:03:01:c0 Received
+[6618] 03-06-c0:a8:00:02:01:c0 Received
+[6632] 03-06-c0:a8:00:02:01:c0 Received
+[6644] 03-06-c0:a8:00:0c:01:c0 Received
+[6657] 03-06-c0:a8:00:01:01:c0 Received
+[6698] 03-06-c0:a8:00:06:01:c0 Received
+[6711] 03-06-c0:a8:00:06:01:c0 Received
+[6717] 03-06-c0:a8:00:06:01:c0 Received
+[6730] 03-06-c0:a8:00:06:01:c0 Received
+[6742] 03-06-c0:a8:00:06:01:c0 Received
+[6754] 03-06-c0:a8:00:06:01:c0 Received
+[6835] 03-06-c0:a8:00:04:01:c0 Received
+[6846] 03-06-c0:a8:00:07:01:c0 Received
+[6858] 03-06-c0:a8:00:04:01:c0 Received
+[6864] 03-06-c0:a8:00:07:01:c0 Received
+[6917] 03-06-c0:a8:00:01:01:c0 Received
+[6923] 03-06-c0:a8:00:01:01:c0 Received
+[6941] 03-06-c0:a8:00:01:01:c0 Received
+[6947] 03-06-c0:a8:00:06:01:c0 Received
+[6953] 03-06-c0:a8:00:01:01:c0 Received
+[7039] 03-06-c0:a8:00:0b:01:c0 Received
+[7050] 03-06-c0:a8:00:01:01:c0 Received
+[7062] 03-06-c0:a8:00:0b:01:c0 Received
+[7134] 03-06-c0:a8:00:0a:01:c0 Received
+[7152] 03-06-c0:a8:00:0a:01:c0 Received
+[7205] 03-06-c0:a8:00:01:01:c0 Received
+[7217] 03-06-c0:a8:00:01:01:c0 Received
+[7234] 03-06-c0:a8:00:04:01:c0 Received
+[7243] 03-06-c0:a8:00:03:01:c0 Received
+[7255] 03-06-c0:a8:00:07:01:c0 Received
+[7261] 03-06-c0:a8:00:04:01:c0 Received
+[7309] 03-06-c0:a8:00:03:01:c0 Received
+[7315] 03-06-c0:a8:00:03:01:c0 Received
+[7321] 03-06-c0:a8:00:03:01:c0 Received
+[7327] 03-06-c0:a8:00:03:01:c0 Received
+[7334] 03-06-c0:a8:00:03:01:c0 Received
+[7340] 03-06-c0:a8:00:03:01:c0 Received
+[7346] 03-06-c0:a8:00:03:01:c0 Received
+[7353] 03-06-c0:a8:00:03:01:c0 Received
+[7360] 03-06-c0:a8:00:03:01:c0 Received
+[7380] 03-06-c0:a8:00:01:01:c0 Received
+[7420] 03-06-c0:a8:00:01:01:c0 Received
+[7433] 03-06-c0:a8:00:04:01:c0 Received
+[7451] 03-06-c0:a8:00:04:01:c0 Received
+[7456] 03-06-c0:a8:00:04:01:c0 Received
+[7467] 03-06-c0:a8:00:01:01:c0 Received
+[7509] 03-06-c0:a8:00:07:01:c0 Received
+[7521] 03-06-c0:a8:00:01:01:c0 Received
+[7539] 03-06-c0:a8:00:04:01:c0 Received
+[7551] 03-06-c0:a8:00:08:01:c0 Received
+[7578] 03-06-c0:a8:00:07:01:c0 Received
+[7619] 03-06-c0:a8:00:05:01:c0 Received
+[7625] 03-06-c0:a8:00:01:01:c0 Received
+[7651] 03-06-c0:a8:00:03:01:c0 Received
+[7658] 03-06-c0:a8:00:03:01:c0 Received
+[7664] 03-06-c0:a8:00:0b:01:c0 Received
+[7670] 03-06-c0:a8:00:01:01:c0 Received
+[7678] 03-06-c0:a8:00:0b:01:c0 Received
+[7684] 03-06-c0:a8:00:03:01:c0 Received
+[7719] 03-06-c0:a8:00:05:01:c0 Received
+[7805] 03-06-c0:a8:00:05:01:c0 Received
+[7819] 03-06-c0:a8:00:08:01:c0 Received
+[7834] 03-06-c0:a8:00:05:01:c0 Received
+[7842] 03-06-c0:a8:00:04:01:c0 Received
+[7854] 03-06-c0:a8:00:07:01:c0 Received
+[7866] 03-06-c0:a8:00:08:01:c0 Received
+[7874] 03-06-c0:a8:00:05:01:c0 Received
+[7880] 03-06-c0:a8:00:03:01:c0 Received
+[7922] 03-06-c0:a8:00:08:01:c0 Received
+[7934] 03-06-c0:a8:00:08:01:c0 Received
+[7940] 03-06-c0:a8:00:07:01:c0 Received
+[7946] 03-06-c0:a8:00:07:01:c0 Received
+[7952] 03-06-c0:a8:00:08:01:c0 Received
+[7965] 03-06-c0:a8:00:07:01:c0 Received
+[7971] 03-06-c0:a8:00:07:01:c0 Received
+[7977] 03-06-c0:a8:00:07:01:c0 Received
+[7983] 03-06-c0:a8:00:05:01:c0 Received
+[8030] 03-06-c0:a8:00:0b:01:c0 Received
+[8036] 03-06-c0:a8:00:07:01:c0 Received
+[8042] 03-06-c0:a8:00:0b:01:c0 Received
+[8054] 03-06-c0:a8:00:0b:01:c0 Received
+[8060] 03-06-c0:a8:00:07:01:c0 Received
+[8067] 03-06-c0:a8:00:04:01:c0 Received
+[8079] 03-06-c0:a8:00:07:01:c0 Received
+[8085] 03-06-c0:a8:00:03:01:c0 Received
+[8091] 03-06-c0:a8:00:05:01:c0 Received
+[8132] 03-06-c0:a8:00:04:01:c0 Received
+[8138] 03-06-c0:a8:00:03:01:c0 Received
+[8144] 03-06-c0:a8:00:04:01:c0 Received
+[8151] 03-06-c0:a8:00:03:01:c0 Received
+[8157] 03-06-c0:a8:00:04:01:c0 Received
+[8163] 03-06-c0:a8:00:04:01:c0 Received
+[8169] 03-06-c0:a8:00:04:01:c0 Received
+[8175] 03-06-c0:a8:00:03:01:c0 Received
+[8182] 03-06-c0:a8:00:03:01:c0 Received
+[8188] 03-06-c0:a8:00:03:01:c0 Received
+[8204] 03-06-c0:a8:00:08:01:c0 Received
+[8222] 03-06-c0:a8:00:03:01:c0 Received
+[8230] 03-06-c0:a8:00:0b:01:c0 Received
+[8246] 03-06-c0:a8:00:0b:01:c0 Received
+[8252] 03-06-c0:a8:00:03:01:c0 Received
+[8260] 03-06-c0:a8:00:0a:01:c0 Received
+[8337] 03-06-c0:a8:00:0a:01:c0 Received
+[8368] 03-06-c0:a8:00:08:01:c0 Received
+[8439] 03-06-c0:a8:00:08:01:c0 Received
+[8445] 03-06-c0:a8:00:08:01:c0 Received
+[8457] 03-06-c0:a8:00:07:01:c0 Received
+[8463] 03-06-c0:a8:00:07:01:c0 Received
+[8474] 03-06-c0:a8:00:0a:01:c0 Received
+[8480] 03-06-c0:a8:00:0a:01:c0 Received
+[8486] 03-06-c0:a8:00:04:01:c0 Received
+[8533] 03-06-c0:a8:00:08:01:c0 Received
+[8551] 03-06-c0:a8:00:06:01:c0 Received
+[8557] 03-06-c0:a8:00:06:01:c0 Received
+[8563] 03-06-c0:a8:00:04:01:c0 Received
+[8569] 03-06-c0:a8:00:08:01:c0 Received
+[8587] 03-06-c0:a8:00:04:01:c0 Received
+[8593] 03-06-c0:a8:00:04:01:c0 Received
+[8599] 03-06-c0:a8:00:04:01:c0 Received
+[8605] 03-06-c0:a8:00:04:01:c0 Received
+[8640] 03-06-c0:a8:00:0b:01:c0 Received
+[8652] 03-06-c0:a8:00:0a:01:c0 Received
+[8658] 03-06-c0:a8:00:0b:01:c0 Received
+[8669] 03-06-c0:a8:00:06:01:c0 Received
+[8675] 03-06-c0:a8:00:04:01:c0 Received
+[8686] 03-06-c0:a8:00:03:01:c0 Received
+[8692] 03-06-c0:a8:00:06:01:c0 Received
+[8704] 03-06-c0:a8:00:08:01:c0 Received
+[8739] 03-06-c0:a8:00:05:01:c0 Received
+[8745] 03-06-c0:a8:00:05:01:c0 Received
+[8751] 03-06-c0:a8:00:05:01:c0 Received
+[8757] 03-06-c0:a8:00:05:01:c0 Received
+[8764] 03-06-c0:a8:00:05:01:c0 Received
+[8851] 03-06-c0:a8:00:0b:01:c0 Received
+[8869] 03-06-c0:a8:00:0b:01:c0 Received
+[8880] 03-06-c0:a8:00:08:01:c0 Received
+[8886] 03-06-c0:a8:00:04:01:c0 Received
+[8904] 03-06-c0:a8:00:0a:01:c0 Received
+[8910] 03-06-c0:a8:00:03:01:c0 Received
+[8945] 03-06-c0:a8:00:04:01:c0 Received
+[8982] 03-06-c0:a8:00:08:01:c0 Received
+[8988] 03-06-c0:a8:00:04:01:c0 Received
+[8994] 03-06-c0:a8:00:04:01:c0 Received
+[9031] 03-06-c0:a8:00:05:01:c0 Received
+[9052] 03-06-c0:a8:00:02:01:c0 Received
+[9075] 03-06-c0:a8:00:0a:01:c0 Received
+[9081] 03-06-c0:a8:00:06:01:c0 Received
+[9114] 03-06-c0:a8:00:06:01:c0 Received
+[9149] 03-06-c0:a8:00:05:01:c0 Received
+[9155] 03-06-c0:a8:00:06:01:c0 Received
+[9161] 03-06-c0:a8:00:05:01:c0 Received
+[9167] 03-06-c0:a8:00:05:01:c0 Received
+[9180] 03-06-c0:a8:00:06:01:c0 Received
+[9186] 03-06-c0:a8:00:05:01:c0 Received
+[9258] 03-06-c0:a8:00:06:01:c0 Received
+[9269] 03-06-c0:a8:00:0a:01:c0 Received
+[9281] 03-06-c0:a8:00:08:01:c0 Received
+[9304] 03-06-c0:a8:00:08:01:c0 Received
+[9366] 03-06-c0:a8:00:08:01:c0 Received
+[9372] 03-06-c0:a8:00:01:01:c0 Received
+[9465] 03-06-c0:a8:00:03:01:c0 Received
+[9471] 03-06-c0:a8:00:06:01:c0 Received
+[9477] 03-06-c0:a8:00:02:01:c0 Received
+[9495] 03-06-c0:a8:00:08:01:c0 Received
+[9501] 03-06-c0:a8:00:08:01:c0 Received
+[9513] 03-06-c0:a8:00:05:01:c0 Received
+[9519] 03-06-c0:a8:00:05:01:c0 Received
+[9525] 03-06-c0:a8:00:08:01:c0 Received
+[9561] 03-06-c0:a8:00:0b:01:c0 Received
+[9567] 03-06-c0:a8:00:0b:01:c0 Received
+[9573] 03-06-c0:a8:00:0b:01:c0 Received
+[9579] 03-06-c0:a8:00:02:01:c0 Received
+[9591] 03-06-c0:a8:00:0b:01:c0 Received
+[9665] 03-06-c0:a8:00:01:01:c0 Received
+[9671] 03-06-c0:a8:00:05:01:c0 Received
+[9677] 03-06-c0:a8:00:06:01:c0 Received
+[9699] 03-06-c0:a8:00:0b:01:c0 Received
+[9705] 03-06-c0:a8:00:08:01:c0 Received
+[9711] 03-06-c0:a8:00:08:01:c0 Received
+[9717] 03-06-c0:a8:00:0b:01:c0 Received
+[9723] 03-06-c0:a8:00:08:01:c0 Received
+[9729] 03-06-c0:a8:00:06:01:c0 Received
+[9796] 03-06-c0:a8:00:07:01:c0 Received
+[9836] 03-06-c0:a8:00:08:01:c0 Received
+[9842] 03-06-c0:a8:00:0a:01:c0 Received
+[9847] 03-06-c0:a8:00:05:01:c0 Received
+[9853] 03-06-c0:a8:00:0a:01:c0 Received
+[9865] 03-06-c0:a8:00:0a:01:c0 Received
+[9871] 03-06-c0:a8:00:06:01:c0 Received
+[9905] 03-06-c0:a8:00:01:01:c0 Received
+[9968] 03-06-c0:a8:00:06:01:c0 Received
+[10055] 03-06-c0:a8:00:06:01:c0 Received
+[10061] 03-06-c0:a8:00:06:01:c0 Received
+[10067] 03-06-c0:a8:00:0b:01:c0 Received
+[10078] 03-06-c0:a8:00:0b:01:c0 Received
+[10089] 03-06-c0:a8:00:06:01:c0 Received
+[10098] 03-06-c0:a8:00:0b:01:c0 Received
+[10109] 03-06-c0:a8:00:01:01:c0 Received
+[10118] 03-06-c0:a8:00:06:01:c0 Received
+[10124] 03-06-c0:a8:00:0b:01:c0 Received
+[10138] 03-06-c0:a8:00:06:01:c0 Received
+[10174] 03-06-c0:a8:00:06:01:c0 Received
+[10180] 03-06-c0:a8:00:06:01:c0 Received
+[10259] 03-06-c0:a8:00:06:01:c0 Received
+[10268] 03-06-c0:a8:00:06:01:c0 Received
+[10283] 03-06-c0:a8:00:06:01:c0 Received
+[10289] 03-06-c0:a8:00:0a:01:c0 Received
+[10303] 03-06-c0:a8:00:0a:01:c0 Received
+[10309] 03-06-c0:a8:00:0a:01:c0 Received
+[10315] 03-06-c0:a8:00:06:01:c0 Received
+[10321] 03-06-c0:a8:00:01:01:c0 Received
+[10334] 03-06-c0:a8:00:0b:01:c0 Received
+[10342] 03-06-c0:a8:00:01:01:c0 Received
+[10378] 03-06-c0:a8:00:06:01:c0 Received
+[10384] 03-06-c0:a8:00:06:01:c0 Received
+[10391] 03-06-c0:a8:00:06:01:c0 Received
+[10397] 03-06-c0:a8:00:06:01:c0 Received
+[10403] 03-06-c0:a8:00:06:01:c0 Received
+[10462] 03-06-c0:a8:00:06:01:c0 Received
+[10469] 03-06-c0:a8:00:06:01:c0 Received
+[10488] 03-06-c0:a8:00:07:01:c0 Received
+[10506] 03-06-c0:a8:00:0b:01:c0 Received
+[10525] 03-06-c0:a8:00:0b:01:c0 Received
+[10530] 03-06-c0:a8:00:0b:01:c0 Received
+[10544] 03-06-c0:a8:00:01:01:c0 Received
+[10550] 03-06-c0:a8:00:0b:01:c0 Received
+[10587] 03-06-c0:a8:00:06:01:c0 Received
+[10593] 03-06-c0:a8:00:06:01:c0 Received
+[10598] 03-06-c0:a8:00:06:01:c0 Received
+[10656] 03-06-c0:a8:00:01:01:c0 Received
+[10663] 03-06-c0:a8:00:0a:01:c0 Received
+[10669] 03-06-c0:a8:00:07:01:c0 Received
+[10677] 03-06-c0:a8:00:0b:01:c0 Received
+[10683] 03-06-c0:a8:00:01:01:c0 Received
+[10689] 03-06-c0:a8:00:0b:01:c0 Received
+[10710] 03-06-c0:a8:00:01:01:c0 Received
+[10721] 03-06-c0:a8:00:01:01:c0 Received
+[10727] 03-06-c0:a8:00:0a:01:c0 Received
+[10736] 03-06-c0:a8:00:0a:01:c0 Received
+[10744] 03-06-c0:a8:00:0a:01:c0 Received
+[10785] 03-06-c0:a8:00:0b:01:c0 Received
+[10792] 03-06-c0:a8:00:0b:01:c0 Received
+[10875] 03-06-c0:a8:00:0b:01:c0 Received
+[10888] 03-06-c0:a8:00:01:01:c0 Received
+[10903] 03-06-c0:a8:00:01:01:c0 Received
+[10912] 03-06-c0:a8:00:0a:01:c0 Received
+[10922] 03-06-c0:a8:00:01:01:c0 Received
+[10935] 03-06-c0:a8:00:0a:01:c0 Received
+[10944] 03-06-c0:a8:00:0a:01:c0 Received
+[10950] 03-06-c0:a8:00:07:01:c0 Received
+[10956] 03-06-c0:a8:00:0b:01:c0 Received
+[10992] 03-06-c0:a8:00:0b:01:c0 Received
+[10998] 03-06-c0:a8:00:0b:01:c0 Received
+[11016] 03-06-c0:a8:00:0a:01:c0 Received
+[11022] 03-06-c0:a8:00:07:01:c0 Received
+[11028] 03-06-c0:a8:00:07:01:c0 Received
+[11034] 03-06-c0:a8:00:0b:01:c0 Received
+[11040] 03-06-c0:a8:00:07:01:c0 Received
+[11046] 03-06-c0:a8:00:0b:01:c0 Received
+[11053] 03-06-c0:a8:00:0b:01:c0 Received
+[11079] 03-06-c0:a8:00:0b:01:c0 Received
+[11085] 03-06-c0:a8:00:0b:01:c0 Received
+[11100] 03-06-c0:a8:00:0a:01:c0 Received
+[11117] 03-06-c0:a8:00:0a:01:c0 Received
+[11126] 03-06-c0:a8:00:0a:01:c0 Received
+[11137] 03-06-c0:a8:00:0b:01:c0 Received
+[11148] 03-06-c0:a8:00:0a:01:c0 Received
+[11154] 03-06-c0:a8:00:0b:01:c0 Received
+[11194] 03-06-c0:a8:00:0b:01:c0 Received
+[11200] 03-06-c0:a8:00:07:01:c0 Received
+[11206] 03-06-c0:a8:00:0a:01:c0 Received
+[11213] 03-06-c0:a8:00:07:01:c0 Received
+[11217] 03-06-c0:a8:00:07:01:c0 Received
+[11224] 03-06-c0:a8:00:04:01:c0 Received
+[11302] 03-06-c0:a8:00:09:01:c0 Received
+[11309] 03-06-c0:a8:00:0a:01:c0 Received
+[11317] 03-06-c0:a8:00:09:01:c0 Received
+[11326] 03-06-c0:a8:00:0a:01:c0 Received
+[11332] 03-06-c0:a8:00:0a:01:c0 Received
+[11338] 03-06-c0:a8:00:0a:01:c0 Received
+[11344] 03-06-c0:a8:00:0a:01:c0 Received
+[11350] 03-06-c0:a8:00:0a:01:c0 Received
+[11378] 03-06-c0:a8:00:09:01:c0 Received
+[11384] 03-06-c0:a8:00:09:01:c0 Received
+[11479] 03-06-c0:a8:00:0a:01:c0 Received
+[11486] 03-06-c0:a8:00:0a:01:c0 Received
+[11490] 03-06-c0:a8:00:0a:01:c0 Received
+[11712] 03-06-c0:a8:00:02:01:c0 Received
+[11718] 03-06-c0:a8:00:02:01:c0 Received
+[11727] 03-06-c0:a8:00:09:01:c0 Received
+[11733] 03-06-c0:a8:00:09:01:c0 Received
+[11742] 03-06-c0:a8:00:09:01:c0 Received
+[11794] 03-06-c0:a8:00:02:01:c0 Received
+[11800] 03-06-c0:a8:00:02:01:c0 Received
+[11917] 03-06-c0:a8:00:09:01:c0 Received
+[11926] 03-06-c0:a8:00:02:01:c0 Received
+[11932] 03-06-c0:a8:00:09:01:c0 Received
+[11938] 03-06-c0:a8:00:02:01:c0 Received
+[11947] 03-06-c0:a8:00:02:01:c0 Received
+[11953] 03-06-c0:a8:00:09:01:c0 Received
+[11962] 03-06-c0:a8:00:02:01:c0 Received
+[11970] 03-06-c0:a8:00:02:01:c0 Received
+[11976] 03-06-c0:a8:00:09:01:c0 Received
+[11982] 03-06-c0:a8:00:02:01:c0 Received
+[12115] 03-06-c0:a8:00:09:01:c0 Received
+[12128] 03-06-c0:a8:00:09:01:c0 Received
+[12134] 03-06-c0:a8:00:02:01:c0 Received
+[12140] 03-06-c0:a8:00:02:01:c0 Received
+[12146] 03-06-c0:a8:00:09:01:c0 Received
+[12152] 03-06-c0:a8:00:02:01:c0 Received
+[12159] 03-06-c0:a8:00:02:01:c0 Received
+[12300] 03-06-c0:a8:00:09:01:c0 Received
+[12308] 03-06-c0:a8:00:02:01:c0 Received
+[12317] 03-06-c0:a8:00:09:01:c0 Received
+[12425] 03-06-c0:a8:00:09:01:c0 Received
+[12432] 03-06-c0:a8:00:09:01:c0 Received
+[12508] 03-06-c0:a8:00:09:01:c0 Received
+[12518] 03-06-c0:a8:00:09:01:c0 Received
+[12530] 03-06-c0:a8:00:02:01:c0 Received
+[12537] 03-06-c0:a8:00:02:01:c0 Received
+[12546] 03-06-c0:a8:00:09:01:c0 Received
+[12552] 03-06-c0:a8:00:09:01:c0 Received
+[12561] 03-06-c0:a8:00:09:01:c0 Received
+[12568] 03-06-c0:a8:00:09:01:c0 Received
+[12574] 03-06-c0:a8:00:09:01:c0 Received
+[12730] 03-06-c0:a8:00:09:01:c0 Received
+[12738] 03-06-c0:a8:00:09:01:c0 Received
+[12745] 03-06-c0:a8:00:09:01:c0 Received
+[12753] 03-06-c0:a8:00:09:01:c0 Received
+[12760] 03-06-c0:a8:00:09:01:c0 Received
+[12769] 03-06-c0:a8:00:09:01:c0 Received
+[12775] 03-06-c0:a8:00:09:01:c0 Received
+[12784] 03-06-c0:a8:00:09:01:c0 Received
+[12790] 03-06-c0:a8:00:09:01:c0 Received
+[12799] 03-06-c0:a8:00:09:01:c0 Received
+[12934] 03-06-c0:a8:00:09:01:c0 Received
+[12941] 03-06-c0:a8:00:09:01:c0 Received
+[12947] 03-06-c0:a8:00:09:01:c0 Received
+[12954] 03-06-c0:a8:00:09:01:c0 Received
+[12960] 03-06-c0:a8:00:09:01:c0 Received
+[13119] 03-06-c0:a8:00:09:01:c0 Received
+[13125] 03-06-c0:a8:00:09:01:c0 Received
+[13344] 03-06-c0:a8:00:09:01:c0 Received
+[13350] 03-06-c0:a8:00:09:01:c0 Received
+[13359] 03-06-c0:a8:00:0c:01:c0 Received
+[13365] 03-06-c0:a8:00:09:01:c0 Received
+[13371] 03-06-c0:a8:00:0c:01:c0 Received
+[13379] 03-06-c0:a8:00:09:01:c0 Received
+[13385] 03-06-c0:a8:00:09:01:c0 Received
+[13394] 03-06-c0:a8:00:09:01:c0 Received
+[13400] 03-06-c0:a8:00:09:01:c0 Received
+[13406] 03-06-c0:a8:00:09:01:c0 Received
+[13411] 03-06-c0:a8:00:09:01:c0 Received
+[13449] 03-06-c0:a8:00:0c:01:c0 Received
+[13455] 03-06-c0:a8:00:0c:01:c0 Received
+[13462] 03-06-c0:a8:00:0c:01:c0 Received
+[13537] 03-06-c0:a8:00:0c:01:c0 Received
+[13543] 03-06-c0:a8:00:0c:01:c0 Received
+[13552] 03-06-c0:a8:00:0c:01:c0 Received
+[13558] 03-06-c0:a8:00:0c:01:c0 Received
+[13567] 03-06-c0:a8:00:0c:01:c0 Received
+[13573] 03-06-c0:a8:00:0c:01:c0 Received
+[13582] 03-06-c0:a8:00:0c:01:c0 Received
+[13590] 03-06-c0:a8:00:0c:01:c0 Received
+[13596] 03-06-c0:a8:00:0c:01:c0 Received
+[13602] 03-06-c0:a8:00:0c:01:c0 Received
+[13609] 03-06-c0:a8:00:0c:01:c0 Received
+[13617] 03-06-c0:a8:00:0c:01:c0 Received
+[13653] 03-06-c0:a8:00:0c:01:c0 Received
+[13733] 03-06-c0:a8:00:0c:01:c0 Received
+[13740] 03-06-c0:a8:00:0c:01:c0 Received
+[13751] 03-06-c0:a8:00:0c:01:c0 Received
+[13760] 03-06-c0:a8:00:0c:01:c0 Received
+[13768] 03-06-c0:a8:00:0c:01:c0 Received
+[64020] 12 Sending
+[64020] 13 Sending
+[64020] 14 Sending
+[64020] 15 Sending
+[64031] 03-06-c0:a8:00:0e:01:c0 Received
+[64037] 03-06-c0:a8:00:0f:01:c0 Received
+[64043] 03-06-c0:a8:00:10:01:c0 Received
+[64049] 03-06-c0:a8:00:0d:01:c0 Received
+[64141] 03-06-c0:a8:00:0f:01:c0 Received
+[64147] 03-06-c0:a8:00:0f:01:c0 Received
+[64155] 03-06-c0:a8:00:0e:01:c0 Received
+[64162] 03-06-c0:a8:00:10:01:c0 Received
+[64168] 03-06-c0:a8:00:0d:01:c0 Received
+[64174] 03-06-c0:a8:00:0e:01:c0 Received
+[64182] 03-06-c0:a8:00:10:01:c0 Received
+[64188] 03-06-c0:a8:00:0d:01:c0 Received
+[64224] 03-06-c0:a8:00:0f:01:c0 Received
+[64229] 03-06-c0:a8:00:0f:01:c0 Received
+[64236] 03-06-c0:a8:00:0f:01:c0 Received
+[64346] 03-06-c0:a8:00:0d:01:c0 Received
+[64352] 03-06-c0:a8:00:0f:01:c0 Received
+[64361] 03-06-c0:a8:00:0e:01:c0 Received
+[64367] 03-06-c0:a8:00:0d:01:c0 Received
+[64372] 03-06-c0:a8:00:0d:01:c0 Received
+[64378] 03-06-c0:a8:00:0f:01:c0 Received
+[64385] 03-06-c0:a8:00:0e:01:c0 Received
+[64391] 03-06-c0:a8:00:10:01:c0 Received
+[64403] 03-06-c0:a8:00:10:01:c0 Received
+[64411] 03-06-c0:a8:00:0f:01:c0 Received
+[64446] 03-06-c0:a8:00:0d:01:c0 Received
+[64453] 03-06-c0:a8:00:0d:01:c0 Received
+[64459] 03-06-c0:a8:00:0d:01:c0 Received
+[64532] 03-06-c0:a8:00:0d:01:c0 Received
+[64538] 03-06-c0:a8:00:0d:01:c0 Received
+[64544] 03-06-c0:a8:00:0e:01:c0 Received
+[64559] 03-06-c0:a8:00:10:01:c0 Received
+[64567] 03-06-c0:a8:00:0e:01:c0 Received
+[64584] 03-06-c0:a8:00:10:01:c0 Received
+[64590] 03-06-c0:a8:00:0d:01:c0 Received
+[64602] 03-06-c0:a8:00:10:01:c0 Received
+[64609] 03-06-c0:a8:00:0e:01:c0 Received
+[64655] 03-06-c0:a8:00:0d:01:c0 Received
+[64661] 03-06-c0:a8:00:0d:01:c0 Received
+[64667] 03-06-c0:a8:00:0d:01:c0 Received
+[64673] 03-06-c0:a8:00:0d:01:c0 Received
+[64679] 03-06-c0:a8:00:0f:01:c0 Received
+[64692] 03-06-c0:a8:00:10:01:c0 Received
+[64698] 03-06-c0:a8:00:0f:01:c0 Received
+[64706] 03-06-c0:a8:00:0f:01:c0 Received
+[64712] 03-06-c0:a8:00:0d:01:c0 Received
+[64728] 03-06-c0:a8:00:0f:01:c0 Received
+[64734] 03-06-c0:a8:00:0e:01:c0 Received
+[64741] 03-06-c0:a8:00:0f:01:c0 Received
+[64747] 03-06-c0:a8:00:0d:01:c0 Received
+[64753] 03-06-c0:a8:00:0f:01:c0 Received
+[64849] 03-06-c0:a8:00:0f:01:c0 Received
+[64955] 03-06-c0:a8:00:0e:01:c0 Received
+[64961] 03-06-c0:a8:00:0d:01:c0 Received
+[64967] 03-06-c0:a8:00:0e:01:c0 Received
+[64973] 03-06-c0:a8:00:0f:01:c0 Received
+[64987] 03-06-c0:a8:00:0f:01:c0 Received
+[64998] 03-06-c0:a8:00:0d:01:c0 Received
+[65004] 03-06-c0:a8:00:0f:01:c0 Received
+[65010] 03-06-c0:a8:00:0e:01:c0 Received
+[65022] 03-06-c0:a8:00:10:01:c0 Received
+[65070] 03-06-c0:a8:00:10:01:c0 Received
+[65076] 03-06-c0:a8:00:0e:01:c0 Received
+[65082] 03-06-c0:a8:00:10:01:c0 Received
+[65088] 03-06-c0:a8:00:10:01:c0 Received
+[65094] 03-06-c0:a8:00:0d:01:c0 Received
+[65100] 03-06-c0:a8:00:0d:01:c0 Received
+[65106] 03-06-c0:a8:00:0d:01:c0 Received
+[65112] 03-06-c0:a8:00:0e:01:c0 Received
+[65118] 03-06-c0:a8:00:0d:01:c0 Received
+[65124] 03-06-c0:a8:00:10:01:c0 Received
+[65130] 03-06-c0:a8:00:0d:01:c0 Received
+[65170] 03-06-c0:a8:00:10:01:c0 Received
+[65178] 03-06-c0:a8:00:10:01:c0 Received
+[65184] 03-06-c0:a8:00:0d:01:c0 Received
+[65190] 03-06-c0:a8:00:0d:01:c0 Received
+[65199] 03-06-c0:a8:00:10:01:c0 Received
+[65205] 03-06-c0:a8:00:0d:01:c0 Received
+[65211] 03-06-c0:a8:00:0d:01:c0 Received
+[65226] 03-06-c0:a8:00:0d:01:c0 Received
+[65232] 03-06-c0:a8:00:0d:01:c0 Received
+[65384] 03-06-c0:a8:00:10:01:c0 Received
+[65390] 03-06-c0:a8:00:10:01:c0 Received
+[65402] 03-06-c0:a8:00:0e:01:c0 Received
+[65408] 03-06-c0:a8:00:0e:01:c0 Received
+[65427] 03-06-c0:a8:00:0d:01:c0 Received
+[65468] 03-06-c0:a8:00:10:01:c0 Received
+[65487] 03-06-c0:a8:00:10:01:c0 Received
+[65499] 03-06-c0:a8:00:10:01:c0 Received
+[65506] 03-06-c0:a8:00:10:01:c0 Received
+[65518] 03-06-c0:a8:00:10:01:c0 Received
+[65547] 03-06-c0:a8:00:0e:01:c0 Received
+[65553] 03-06-c0:a8:00:10:01:c0 Received
+[65559] 03-06-c0:a8:00:0e:01:c0 Received
+[65565] 03-06-c0:a8:00:10:01:c0 Received
+[65580] 03-06-c0:a8:00:0d:01:c0 Received
+[65586] 03-06-c0:a8:00:0e:01:c0 Received
+[65592] 03-06-c0:a8:00:0e:01:c0 Received
+[65598] 03-06-c0:a8:00:0e:01:c0 Received
+[65604] 03-06-c0:a8:00:0e:01:c0 Received
+[65612] 03-06-c0:a8:00:0d:01:c0 Received
+[65618] 03-06-c0:a8:00:0d:01:c0 Received
+[65625] 03-06-c0:a8:00:10:01:c0 Received
+[65775] 03-06-c0:a8:00:10:01:c0 Received
+[65784] 03-06-c0:a8:00:0e:01:c0 Received
+[65790] 03-06-c0:a8:00:10:01:c0 Received
+[65806] 03-06-c0:a8:00:0e:01:c0 Received
+[65812] 03-06-c0:a8:00:10:01:c0 Received
+[65818] 03-06-c0:a8:00:0f:01:c0 Received
+[65824] 03-06-c0:a8:00:10:01:c0 Received
+[65833] 03-06-c0:a8:00:0e:01:c0 Received
+[65854] 03-06-c0:a8:00:10:01:c0 Received
+[65860] 03-06-c0:a8:00:10:01:c0 Received
+[65984] 03-06-c0:a8:00:10:01:c0 Received
+[65992] 03-06-c0:a8:00:10:01:c0 Received
+[66001] 03-06-c0:a8:00:10:01:c0 Received
+[66013] 03-06-c0:a8:00:0e:01:c0 Received
+[66026] 03-06-c0:a8:00:10:01:c0 Received
+[66032] 03-06-c0:a8:00:0f:01:c0 Received
+[66038] 03-06-c0:a8:00:0f:01:c0 Received
+[66044] 03-06-c0:a8:00:10:01:c0 Received
+[66050] 03-06-c0:a8:00:10:01:c0 Received
+[66085] 03-06-c0:a8:00:0d:01:c0 Received
+[66176] 03-06-c0:a8:00:0d:01:c0 Received
+[66184] 03-06-c0:a8:00:0d:01:c0 Received
+[66196] 03-06-c0:a8:00:0f:01:c0 Received
+[66202] 03-06-c0:a8:00:0f:01:c0 Received
+[66208] 03-06-c0:a8:00:0e:01:c0 Received
+[66217] 03-06-c0:a8:00:0d:01:c0 Received
+[66229] 03-06-c0:a8:00:10:01:c0 Received
+[66235] 03-06-c0:a8:00:0f:01:c0 Received
+[66241] 03-06-c0:a8:00:10:01:c0 Received
+[66250] 03-06-c0:a8:00:0f:01:c0 Received
+[66290] 03-06-c0:a8:00:0f:01:c0 Received
+[66296] 03-06-c0:a8:00:10:01:c0 Received
+[66302] 03-06-c0:a8:00:0f:01:c0 Received
+[66308] 03-06-c0:a8:00:10:01:c0 Received
+[66320] 03-06-c0:a8:00:0f:01:c0 Received
+[66363] 03-06-c0:a8:00:0e:01:c0 Received
+[66369] 03-06-c0:a8:00:0e:01:c0 Received
+[66375] 03-06-c0:a8:00:0e:01:c0 Received
+[66383] 03-06-c0:a8:00:0d:01:c0 Received
+[66394] 03-06-c0:a8:00:0f:01:c0 Received
+[66400] 03-06-c0:a8:00:0f:01:c0 Received
+[66408] 03-06-c0:a8:00:0e:01:c0 Received
+[66415] 03-06-c0:a8:00:0e:01:c0 Received
+[66423] 03-06-c0:a8:00:0e:01:c0 Received
+[66430] 03-06-c0:a8:00:0e:01:c0 Received
+[66436] 03-06-c0:a8:00:0e:01:c0 Received
+[66442] 03-06-c0:a8:00:0e:01:c0 Received
+[66491] 03-06-c0:a8:00:0f:01:c0 Received
+[66498] 03-06-c0:a8:00:0f:01:c0 Received
+[66591] 03-06-c0:a8:00:0f:01:c0 Received
+[66616] 03-06-c0:a8:00:10:01:c0 Received
+[66622] 03-06-c0:a8:00:0f:01:c0 Received
+[66628] 03-06-c0:a8:00:0d:01:c0 Received
+[66645] 03-06-c0:a8:00:0f:01:c0 Received
+[66659] 03-06-c0:a8:00:0f:01:c0 Received
+[66668] 03-06-c0:a8:00:0f:01:c0 Received
+[66703] 03-06-c0:a8:00:10:01:c0 Received
+[66709] 03-06-c0:a8:00:0f:01:c0 Received
+[66733] 03-06-c0:a8:00:0f:01:c0 Received
+[66800] 03-06-c0:a8:00:0d:01:c0 Received
+[66808] 03-06-c0:a8:00:0f:01:c0 Received
+[66826] 03-06-c0:a8:00:10:01:c0 Received
+[66831] 03-06-c0:a8:00:0f:01:c0 Received
+[66837] 03-06-c0:a8:00:0e:01:c0 Received
+[66909] 03-06-c0:a8:00:0d:01:c0 Received
+[67008] 03-06-c0:a8:00:10:01:c0 Received
+[67016] 03-06-c0:a8:00:0e:01:c0 Received
+[67114] 03-06-c0:a8:00:10:01:c0 Received
+[67186] 03-06-c0:a8:00:0e:01:c0 Received
+[67191] 03-06-c0:a8:00:0e:01:c0 Received
+[67200] 03-06-c0:a8:00:10:01:c0 Received
+0 sent: 54 ; delivered: 42; retransmissions:4; TotalPacketPayloadSize:0
+1 sent: 54 ; delivered: 43; retransmissions:2; TotalPacketPayloadSize:0
+2 sent: 54 ; delivered: 48; retransmissions:3; TotalPacketPayloadSize:0
+3 sent: 54 ; delivered: 45; retransmissions:1; TotalPacketPayloadSize:0
+4 sent: 54 ; delivered: 42; retransmissions:3; TotalPacketPayloadSize:0
+5 sent: 54 ; delivered: 54; retransmissions:2; TotalPacketPayloadSize:0
+6 sent: 54 ; delivered: 42; retransmissions:2; TotalPacketPayloadSize:0
+7 sent: 54 ; delivered: 42; retransmissions:3; TotalPacketPayloadSize:0
+8 sent: 54 ; delivered: 54; retransmissions:3; TotalPacketPayloadSize:0
+9 sent: 54 ; delivered: 54; retransmissions:2; TotalPacketPayloadSize:0
+10 sent: 54 ; delivered: 54; retransmissions:1; TotalPacketPayloadSize:0
+11 sent: 54 ; delivered: 42; retransmissions:4; TotalPacketPayloadSize:0
+12 sent: 54 ; delivered: 43; retransmissions:8; TotalPacketPayloadSize:0
+13 sent: 54 ; delivered: 40; retransmissions:3; TotalPacketPayloadSize:0
+14 sent: 54 ; delivered: 42; retransmissions:1; TotalPacketPayloadSize:0
+15 sent: 54 ; delivered: 49; retransmissions:6; TotalPacketPayloadSize:0
+total packet loss % 100

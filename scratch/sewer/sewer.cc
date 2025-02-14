@@ -16,9 +16,24 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "s1g-test-tim-raw.h"
+// !!!!!!!!!!!!!!!!!!!!!!!
+// Simulation parameters line 48~57
+// configureTCPSensorClients is the only interesting function
+// Node placement starts at line 893
+// Channel construction starts at line 923
+// Other functions are module creator/HaLow related functions, most interesting stuff is in TCPSensorClient.cc
 
-NS_LOG_COMPONENT_DEFINE("s1g-wifi-network-tim-raw");
+
+
+
+
+
+#include "s1g-test-tim-raw.h"
+#include "ns3/WUSN-loss-model.h"
+#include "ns3/propagation-delay-model.h"
+#include "ns3/yans-wifi-helper.h"
+
+NS_LOG_COMPONENT_DEFINE("sewer");
 
 uint32_t AssocNum = 0;
 int64_t AssocTime = 0;
@@ -28,7 +43,27 @@ const int MaxSta = 8000;
 
 Configuration config;
 Statistics stats;
-SimulationEventManager eventManager;
+
+// ******
+// SIMULATION PARAMS
+// ******
+
+Time stopTime = Minutes(1);
+
+uint32_t gateways = 1;
+uint32_t totalNodes = 12;
+uint32_t perAxis = 4;
+
+int32_t packetSize = 200;
+int32_t totalSize = 200;
+
+double sewerLength = 11.2;
+double depth = 0.6;
+double perDist = sewerLength/(totalNodes -1);
+
+uint32_t simTime = 300;
+uint32_t timeOut = 20;
+
 
 class assoc_record {
 public:
@@ -37,6 +72,7 @@ public:
 	void SetAssoc(std::string context, Mac48Address address);
 	void UnsetAssoc(std::string context, Mac48Address address);
 	void setstaid(uint16_t id);
+        uint16_t getstaid();
 private:
 	bool assoc;
 	uint16_t staid;
@@ -49,6 +85,10 @@ assoc_record::assoc_record() {
 
 void assoc_record::setstaid(uint16_t id) {
 	staid = id;
+}
+
+uint16_t assoc_record::getstaid() {
+	return staid;
 }
 
 void assoc_record::SetAssoc(std::string context, Mac48Address address) {
@@ -75,6 +115,17 @@ uint32_t GetAssocNum() {
 		}
 	}
 	return AssocNum;
+}
+
+bool IsAssoc(uint16_t staid)
+{
+	for (assoc_recordVector::const_iterator index = assoc_vector.begin();
+			index != assoc_vector.end(); index++) {
+          if ((*index)->getstaid() == staid) {
+            return ((*index)->GetAssoc());
+          }
+	}
+	return false;
 }
 
 void PopulateArpCache() {
@@ -269,7 +320,7 @@ bool check (uint16_t aid, uint32_t index)
 	uint8_t block = (aid >> 6 ) & 0x001f;
 	NS_ASSERT (config.pageS.GetPageSliceLen() > 0);
 	//uint8_t toTim = (block - config.pageS.GetBlockOffset()) % config.pageS.GetPageSliceLen();
-	if (index == config.pageS.GetPageSliceCount() - 1 && config.pageS.GetPageSliceCount() != 0)
+	if (index == (uint32_t)(config.pageS.GetPageSliceCount() - 1) && config.pageS.GetPageSliceCount() != 0)
 	{
 		// the last page slice has 32 - the rest blocks
 		return (block <= 31) && (block >= index * config.pageS.GetPageSliceLen());
@@ -282,10 +333,6 @@ bool check (uint16_t aid, uint32_t index)
 
 
 void sendStatistics(bool schedule) {
-	eventManager.onUpdateStatistics(stats);
-	eventManager.onUpdateSlotStatistics(
-			transmissionsPerTIMGroupAndSlotFromAPSinceLastInterval,
-			transmissionsPerTIMGroupAndSlotFromSTASinceLastInterval);
 	// reset
 	std::fill(transmissionsPerTIMGroupAndSlotFromAPSinceLastInterval.begin(),
 			transmissionsPerTIMGroupAndSlotFromAPSinceLastInterval.end(), 0);
@@ -297,22 +344,33 @@ void sendStatistics(bool schedule) {
 }
 
 void onSTADeassociated(int i) {
-	eventManager.onNodeDeassociated(*nodes[i]);
 }
 
 void updateNodesQueueLength() {
-	for (uint32_t i = 0; i < config.Nsta; i++) {
+	for (uint32_t i = 0; i < totalNodes; i++) {
 		nodes[i]->UpdateQueueLength();
 		stats.get(i).EDCAQueueLength = nodes[i]->queueLength;
 	}
 	Simulator::Schedule(Seconds(0.5), &updateNodesQueueLength);
 }
 
+static bool startedSending=false;
+
+void AssocTimeoutStartSending()
+{
+  if (!startedSending) {
+        startedSending=true;
+	configureTCPSensorServer();
+	configureTCPSensorClients();
+	updateNodesQueueLength();
+  }
+}
+
 void onSTAAssociated(int i) {
 	cout << "Node " << std::to_string(i) << " is associated and has aid "
 			<< nodes[i]->aId << endl;
 
-	for (int k = 0; k < config.rps.rpsset.size(); k++) {
+	for (uint32_t k = 0; k < config.rps.rpsset.size(); k++) {
 		for (int j = 0; j < config.rps.rpsset[k]->GetNumberOfRawGroups(); j++) {
 			if (config.rps.rpsset[k]->GetRawAssigmentObj(j).GetRawGroupAIDStart()
 					<= i + 1
@@ -331,40 +389,16 @@ void onSTAAssociated(int i) {
 		}
 	}
 
-	eventManager.onNodeAssociated(*nodes[i]);
 
 	// RPS, Raw group and RAW slot assignment
 
-	if (GetAssocNum() == config.Nsta) {
+	if (GetAssocNum() == (totalNodes)) {
 		cout << "All " << AssocNum << " stations associated at " << Simulator::Now ().GetMicroSeconds () <<", configuring clients & server" << endl;
 
 		// association complete, start sending packets
-		stats.TimeWhenEverySTAIsAssociated = Simulator::Now();
+			stats.TimeWhenEverySTAIsAssociated = Simulator::Now();
 
-		if (config.trafficType == "udp") {
-			std::cout << "UDP" << std::endl;
-			configureUDPServer();
-			configureUDPClients();
-		} else if (config.trafficType == "udpecho") {
-			configureUDPEchoServer();
-			configureUDPEchoClients();
-		} else if (config.trafficType == "tcpecho") {
-			configureTCPEchoServer();
-			configureTCPEchoClients();
-		} else if (config.trafficType == "tcppingpong") {
-			configureTCPPingPongServer();
-			configureTCPPingPongClients();
-		} else if (config.trafficType == "tcpipcamera") {
-			configureTCPIPCameraServer();
-			configureTCPIPCameraClients();
-		} else if (config.trafficType == "tcpfirmware") {
-			configureTCPFirmwareServer();
-			configureTCPFirmwareClients();
-		} else if (config.trafficType == "tcpsensor") {
-			configureTCPSensorServer();
-			configureTCPSensorClients();
-		}
-		updateNodesQueueLength();
+                        Simulator::Schedule(Seconds(0.5), &AssocTimeoutStartSending);
 	}
 }
 
@@ -386,9 +420,7 @@ void RawSlotTrace(uint8_t oldValue, uint8_t newValue) {
 void configureNodes(NodeContainer& wifiStaNode, NetDeviceContainer& staDevice) {
 	cout << "Configuring STA Node trace sources..." << endl;
 
-	for (uint32_t i = 0; i < config.Nsta; i++) {
-
-		cout << "Hooking up trace sources for STA " << i << endl;
+	for (uint32_t i = 0; i < (totalNodes); i++) {
 
 		NodeEntry* n = new NodeEntry(i, &stats, wifiStaNode.Get(i),
 				staDevice.Get(i));
@@ -480,72 +512,9 @@ void configureNodes(NodeContainer& wifiStaNode, NetDeviceContainer& staDevice) {
 				"/NodeList/" + std::to_string(i)
 						+ "/DeviceList/0/$ns3::WifiNetDevice/Phy/State/State",
 				MakeCallback(&NodeEntry::OnPhyStateChange, n));
-
 	}
 }
 
-int getBandwidth(string dataMode) {
-	if (dataMode == "MCS1_0" || dataMode == "MCS1_1" || dataMode == "MCS1_2"
-			|| dataMode == "MCS1_3" || dataMode == "MCS1_4"
-			|| dataMode == "MCS1_5" || dataMode == "MCS1_6"
-			|| dataMode == "MCS1_7" || dataMode == "MCS1_8"
-			|| dataMode == "MCS1_9" || dataMode == "MCS1_10")
-		return 1;
-
-	else if (dataMode == "MCS2_0" || dataMode == "MCS2_1"
-			|| dataMode == "MCS2_2" || dataMode == "MCS2_3"
-			|| dataMode == "MCS2_4" || dataMode == "MCS2_5"
-			|| dataMode == "MCS2_6" || dataMode == "MCS2_7"
-			|| dataMode == "MCS2_8")
-		return 2;
-
-	return 0;
-}
-
-string getWifiMode(string dataMode) {
-	if (dataMode == "MCS1_0")
-		return "OfdmRate300KbpsBW1MHz";
-	else if (dataMode == "MCS1_1")
-		return "OfdmRate600KbpsBW1MHz";
-	else if (dataMode == "MCS1_2")
-		return "OfdmRate900KbpsBW1MHz";
-	else if (dataMode == "MCS1_3")
-		return "OfdmRate1_2MbpsBW1MHz";
-	else if (dataMode == "MCS1_4")
-		return "OfdmRate1_8MbpsBW1MHz";
-	else if (dataMode == "MCS1_5")
-		return "OfdmRate2_4MbpsBW1MHz";
-	else if (dataMode == "MCS1_6")
-		return "OfdmRate2_7MbpsBW1MHz";
-	else if (dataMode == "MCS1_7")
-		return "OfdmRate3MbpsBW1MHz";
-	else if (dataMode == "MCS1_8")
-		return "OfdmRate3_6MbpsBW1MHz";
-	else if (dataMode == "MCS1_9")
-		return "OfdmRate4MbpsBW1MHz";
-	else if (dataMode == "MCS1_10")
-		return "OfdmRate150KbpsBW1MHz";
-
-	else if (dataMode == "MCS2_0")
-		return "OfdmRate650KbpsBW2MHz";
-	else if (dataMode == "MCS2_1")
-		return "OfdmRate1_3MbpsBW2MHz";
-	else if (dataMode == "MCS2_2")
-		return "OfdmRate1_95MbpsBW2MHz";
-	else if (dataMode == "MCS2_3")
-		return "OfdmRate2_6MbpsBW2MHz";
-	else if (dataMode == "MCS2_4")
-		return "OfdmRate3_9MbpsBW2MHz";
-	else if (dataMode == "MCS2_5")
-		return "OfdmRate5_2MbpsBW2MHz";
-	else if (dataMode == "MCS2_6")
-		return "OfdmRate5_85MbpsBW2MHz";
-	else if (dataMode == "MCS2_7")
-		return "OfdmRate6_5MbpsBW2MHz";
-	else if (dataMode == "MCS2_8")
-		return "OfdmRate7_8MbpsBW2MHz";
-	return "";
-}
 
 void OnAPPhyRxDrop(std::string context, Ptr<const Packet> packet,
 		DropReason reason) {
@@ -661,7 +630,7 @@ void onChannelTransmission(Ptr<NetDevice> senderDevice, Ptr<Packet> packet) {
 
 int getSTAIdFromAddress(Ipv4Address from) {
 	int staId = -1;
-	for (int i = 0; i < staNodeInterface.GetN(); i++) {
+	for (uint32_t i = 0; i < staNodeInterface.GetN(); i++) {
 		if (staNodeInterface.GetAddress(i) == from) {
 			staId = i;
 			break;
@@ -681,7 +650,7 @@ void udpPacketReceivedAtServer(Ptr<const Packet> packet, Address from) { //works
 				<< endl;
 }
 
-void tcpPacketReceivedAtServer(Ptr<const Packet> packet, Address from) {
+void tcpPacketReceivedAtServer(Ptr<const Packet> packet, Address from) { 
 	int staId = getSTAIdFromAddress(
 			InetSocketAddress::ConvertFrom(from).GetIpv4());
 	if (staId != -1)
@@ -694,7 +663,9 @@ void tcpPacketReceivedAtServer(Ptr<const Packet> packet, Address from) {
 void tcpRetransmissionAtServer(Address to) {
 	int staId = getSTAIdFromAddress(Ipv4Address::ConvertFrom(to));
 	if (staId != -1)
+	{
 		nodes[staId]->OnTcpRetransmissionAtAP();
+	}
 	else
 		cout << "*** Node could not be determined from received packet at AP "
 				<< endl;
@@ -722,171 +693,8 @@ void tcpStateChangeAtServer(TcpSocket::TcpStates_t oldState,
 	//cout << Simulator::Now().GetMicroSeconds() << " ********** TCP SERVER SOCKET STATE CHANGED FROM " << oldState << " TO " << newState << endl;
 }
 
-void tcpIPCameraDataReceivedAtServer(Address from, uint16_t nrOfBytes) {
-	int staId = getSTAIdFromAddress(
-			InetSocketAddress::ConvertFrom(from).GetIpv4());
-	if (staId != -1)
-		nodes[staId]->OnTcpIPCameraDataReceivedAtAP(nrOfBytes);
-	else
-		cout << "*** Node could not be determined from received packet at AP "
-				<< endl;
-}
 
-void configureUDPServer() {
-	UdpServerHelper myServer(9);
-	serverApp = myServer.Install(wifiApNode);
-	serverApp.Get(0)->TraceConnectWithoutContext("Rx",
-			MakeCallback(&udpPacketReceivedAtServer));
-	serverApp.Start(Seconds(0));
 
-}
-
-void configureUDPEchoServer() {
-	UdpEchoServerHelper myServer(9);
-	serverApp = myServer.Install(wifiApNode);
-	serverApp.Get(0)->TraceConnectWithoutContext("Rx",
-			MakeCallback(&udpPacketReceivedAtServer));
-	serverApp.Start(Seconds(0));
-}
-
-void configureTCPEchoServer() {
-	TcpEchoServerHelper myServer(80);
-	serverApp = myServer.Install(wifiApNode);
-	wireTCPServer(serverApp);
-	serverApp.Start(Seconds(0));
-}
-
-void configureTCPPingPongServer() {
-	// TCP ping pong is a test for the new base tcp-client and tcp-server applications
-	ObjectFactory factory;
-	factory.SetTypeId(TCPPingPongServer::GetTypeId());
-	factory.Set("Port", UintegerValue(81));
-
-	Ptr<Application> tcpServer = factory.Create<TCPPingPongServer>();
-	wifiApNode.Get(0)->AddApplication(tcpServer);
-
-	auto serverApp = ApplicationContainer(tcpServer);
-	wireTCPServer(serverApp);
-	serverApp.Start(Seconds(0));
-}
-
-void configureTCPPingPongClients() {
-
-	ObjectFactory factory;
-	factory.SetTypeId(TCPPingPongClient::GetTypeId());
-	factory.Set("Interval", TimeValue(MilliSeconds(config.trafficInterval)));
-	factory.Set("PacketSize", UintegerValue(config.payloadSize));
-
-	factory.Set("RemoteAddress",
-			Ipv4AddressValue(apNodeInterface.GetAddress(0)));
-	factory.Set("RemotePort", UintegerValue(81));
-
-	Ptr<UniformRandomVariable> m_rv = CreateObject<UniformRandomVariable>();
-
-	for (uint16_t i = 0; i < config.Nsta; i++) {
-
-		Ptr<Application> tcpClient = factory.Create<TCPPingPongClient>();
-		wifiStaNode.Get(i)->AddApplication(tcpClient);
-		auto clientApp = ApplicationContainer(tcpClient);
-		wireTCPClient(clientApp, i);
-
-		double random = m_rv->GetValue(0, config.trafficInterval);
-		clientApp.Start(MilliSeconds(0 + random));
-		//clientApp.Stop(Seconds(simulationTime + 1));
-	}
-}
-
-void configureTCPIPCameraServer() {
-	ObjectFactory factory;
-	factory.SetTypeId(TCPIPCameraServer::GetTypeId());
-	factory.Set("Port", UintegerValue(82));
-
-	Ptr<Application> tcpServer = factory.Create<TCPIPCameraServer>();
-	wifiApNode.Get(0)->AddApplication(tcpServer);
-
-	auto serverApp = ApplicationContainer(tcpServer);
-	wireTCPServer(serverApp);
-	serverApp.Start(Seconds(0));
-//	serverApp.Stop(Seconds(config.simulationTime));
-}
-
-void configureTCPIPCameraClients() {
-
-	ObjectFactory factory;
-	factory.SetTypeId(TCPIPCameraClient::GetTypeId());
-	factory.Set("MotionPercentage",
-			DoubleValue(config.ipcameraMotionPercentage));
-	factory.Set("MotionDuration",
-			TimeValue(Seconds(config.ipcameraMotionDuration)));
-	factory.Set("DataRate", UintegerValue(config.ipcameraDataRate));
-
-	factory.Set("PacketSize", UintegerValue(config.payloadSize));
-
-	factory.Set("RemoteAddress",
-			Ipv4AddressValue(apNodeInterface.GetAddress(0)));
-	factory.Set("RemotePort", UintegerValue(82));
-
-	Ptr<UniformRandomVariable> m_rv = CreateObject<UniformRandomVariable>();
-
-	for (uint16_t i = 0; i < config.Nsta; i++) {
-
-		Ptr<Application> tcpClient = factory.Create<TCPIPCameraClient>();
-		wifiStaNode.Get(i)->AddApplication(tcpClient);
-		auto clientApp = ApplicationContainer(tcpClient);
-		wireTCPClient(clientApp, i);
-
-		clientApp.Start(MilliSeconds(0));
-		//clientApp.Stop(Seconds(config.simulationTime));
-	}
-}
-
-void configureTCPFirmwareServer() {
-	ObjectFactory factory;
-	factory.SetTypeId(TCPFirmwareServer::GetTypeId());
-	factory.Set("Port", UintegerValue(83));
-
-	factory.Set("FirmwareSize", UintegerValue(config.firmwareSize));
-	factory.Set("BlockSize", UintegerValue(config.firmwareBlockSize));
-	factory.Set("NewUpdateProbability",
-			DoubleValue(config.firmwareNewUpdateProbability));
-
-	Ptr<Application> tcpServer = factory.Create<TCPFirmwareServer>();
-	wifiApNode.Get(0)->AddApplication(tcpServer);
-
-	auto serverApp = ApplicationContainer(tcpServer);
-	wireTCPServer(serverApp);
-	serverApp.Start(Seconds(0));
-//	serverApp.Stop(Seconds(config.simulationTime));
-}
-
-void configureTCPFirmwareClients() {
-
-	ObjectFactory factory;
-	factory.SetTypeId(TCPFirmwareClient::GetTypeId());
-	factory.Set("CorruptionProbability",
-			DoubleValue(config.firmwareCorruptionProbability));
-	factory.Set("VersionCheckInterval",
-			TimeValue(MilliSeconds(config.firmwareVersionCheckInterval)));
-	factory.Set("PacketSize", UintegerValue(config.payloadSize));
-
-	factory.Set("RemoteAddress",
-			Ipv4AddressValue(apNodeInterface.GetAddress(0)));
-	factory.Set("RemotePort", UintegerValue(83));
-
-	Ptr<UniformRandomVariable> m_rv = CreateObject<UniformRandomVariable>();
-
-	for (uint16_t i = 0; i < config.Nsta; i++) {
-
-		Ptr<Application> tcpClient = factory.Create<TCPFirmwareClient>();
-		wifiStaNode.Get(i)->AddApplication(tcpClient);
-		auto clientApp = ApplicationContainer(tcpClient);
-		wireTCPClient(clientApp, i);
-
-		double random = m_rv->GetValue(0, config.trafficInterval);
-		clientApp.Start(MilliSeconds(0 + random));
-		clientApp.Stop(Seconds(config.simulationTime));
-	}
-}
 
 void configureTCPSensorServer() {
 	ObjectFactory factory;
@@ -899,7 +707,7 @@ void configureTCPSensorServer() {
 	auto serverApp = ApplicationContainer(tcpServer);
 	wireTCPServer(serverApp);
 	serverApp.Start(Seconds(0));
-//	serverApp.Stop(Seconds(config.simulationTime));
+	serverApp.Stop(stopTime);
 }
 
 void configureTCPSensorClients() {
@@ -907,9 +715,8 @@ void configureTCPSensorClients() {
 	ObjectFactory factory;
 	factory.SetTypeId(TCPSensorClient::GetTypeId());
 
-	factory.Set("Interval", TimeValue(MilliSeconds(config.trafficInterval)));
-	factory.Set("PacketSize", UintegerValue(config.payloadSize));
-	factory.Set("MeasurementSize", UintegerValue(config.sensorMeasurementSize));
+	factory.Set("PacketSize", UintegerValue(packetSize));
+	factory.Set("MeasurementSize", UintegerValue(totalSize));
 
 	factory.Set("RemoteAddress",
 			Ipv4AddressValue(apNodeInterface.GetAddress(0)));
@@ -917,16 +724,23 @@ void configureTCPSensorClients() {
 
 	Ptr<UniformRandomVariable> m_rv = CreateObject<UniformRandomVariable>();
 
-	for (uint16_t i = 0; i < config.Nsta; i++) {
-
+	double itterator = 0;
+	for (uint16_t i = 0; i < (totalNodes); i++) 
+	{
+          if (IsAssoc(i)) {
+		factory.Set("id", UintegerValue(i));
+		factory.Set("Interval", TimeValue(Minutes(0)));
 		Ptr<Application> tcpClient = factory.Create<TCPSensorClient>();
 		wifiStaNode.Get(i)->AddApplication(tcpClient);
 		auto clientApp = ApplicationContainer(tcpClient);
 		wireTCPClient(clientApp, i);
 
-		double random = m_rv->GetValue(0, config.trafficInterval);
-		clientApp.Start(MilliSeconds(0 + random));
-		clientApp.Stop(Seconds(config.simulationTime));
+		clientApp.Start(MilliSeconds(0));
+		clientApp.Stop(stopTime);
+		itterator += 0.25;
+          } else {
+            cout << "Not Associated: " << (int)i << endl;
+          }
 	}
 }
 
@@ -940,10 +754,6 @@ void wireTCPServer(ApplicationContainer serverApp) {
 	serverApp.Get(0)->TraceConnectWithoutContext("TCPStateChanged",
 			MakeCallback(&tcpStateChangeAtServer));
 
-	if (config.trafficType == "tcpipcamera") {
-		serverApp.Get(0)->TraceConnectWithoutContext("DataReceived",
-				MakeCallback(&tcpIPCameraDataReceivedAtServer));
-	}
 }
 
 void wireTCPClient(ApplicationContainer clientApp, int i) {
@@ -984,94 +794,6 @@ void wireTCPClient(ApplicationContainer clientApp, int i) {
 	}
 }
 
-void configureTCPEchoClients() {
-	TcpEchoClientHelper clientHelper(apNodeInterface.GetAddress(0), 80); //address of remote node
-	clientHelper.SetAttribute("MaxPackets", UintegerValue(4294967295u));
-	clientHelper.SetAttribute("Interval",
-			TimeValue(MilliSeconds(config.trafficInterval)));
-	//clientHelper.SetAttribute("IntervalDeviation", TimeValue(MilliSeconds(config.trafficIntervalDeviation)));
-	clientHelper.SetAttribute("PacketSize", UintegerValue(config.payloadSize));
-
-	Ptr<UniformRandomVariable> m_rv = CreateObject<UniformRandomVariable>();
-
-	for (uint16_t i = 0; i < config.Nsta; i++) {
-		ApplicationContainer clientApp = clientHelper.Install(
-				wifiStaNode.Get(i));
-		wireTCPClient(clientApp, i);
-
-		double random = m_rv->GetValue(0, config.trafficInterval);
-		clientApp.Start(MilliSeconds(0 + random));
-		//clientApp.Stop(Seconds(simulationTime + 1));
-	}
-}
-
-void configureUDPClients() {
-	//Application start time
-	Ptr<UniformRandomVariable> m_rv = CreateObject<UniformRandomVariable>();
-
-	UdpClientHelper myClient(apNodeInterface.GetAddress(0), 9); //address of remote node
-	myClient.SetAttribute("MaxPackets", config.maxNumberOfPackets);
-	myClient.SetAttribute("PacketSize", UintegerValue(config.payloadSize));
-	traffic_sta.clear();
-	ifstream trafficfile(config.TrafficPath);
-	if (trafficfile.is_open()) {
-		uint16_t sta_id;
-		float sta_traffic;
-		for (uint16_t kk = 0; kk < config.Nsta; kk++) {
-			trafficfile >> sta_id;
-			trafficfile >> sta_traffic;
-			traffic_sta.insert(std::make_pair(sta_id, sta_traffic)); //insert data
-			//cout << "sta_id = " << sta_id << " sta_traffic = " << sta_traffic << "\n";
-		}
-		trafficfile.close();
-	} else
-		cout << "Unable to open traffic file \n";
-
-	double randomStart = 0.0;
-	for (std::map<uint16_t, float>::iterator it = traffic_sta.begin();
-			it != traffic_sta.end(); ++it) {
-		std::ostringstream intervalstr;
-		intervalstr << (config.payloadSize * 8) / (it->second * 1000000);
-		std::string intervalsta = intervalstr.str();
-
-		//config.trafficInterval = UintegerValue (Time (intervalsta));
-
-		myClient.SetAttribute("Interval", TimeValue(Time(intervalsta))); // TODO add to nodeEntry and visualize
-		randomStart = m_rv->GetValue(0,
-				(config.payloadSize * 8) / (it->second * 1000000));
-		ApplicationContainer clientApp = myClient.Install(
-				wifiStaNode.Get(it->first));
-		clientApp.Get(0)->TraceConnectWithoutContext("Tx",
-				MakeCallback(&NodeEntry::OnUdpPacketSent, nodes[it->first]));
-		clientApp.Start(Seconds(1 + randomStart));
-		//clientApp.Stop (Seconds (config.simulationTime+1)); //with this throughput is smaller
-	}
-	AppStartTime = Simulator::Now().GetSeconds() + 1;
-	//Simulator::Stop (Seconds (config.simulationTime+1));
-}
-
-void configureUDPEchoClients() {
-	UdpEchoClientHelper clientHelper(apNodeInterface.GetAddress(0), 9); //address of remote node
-	clientHelper.SetAttribute("MaxPackets", UintegerValue(4294967295u));
-	clientHelper.SetAttribute("Interval", TimeValue(MilliSeconds(config.trafficInterval)));
-	//clientHelper.SetAttribute("IntervalDeviation", TimeValue(MilliSeconds(config.trafficIntervalDeviation)));
-	clientHelper.SetAttribute("PacketSize", UintegerValue(config.payloadSize));
-
-	Ptr<UniformRandomVariable> m_rv = CreateObject<UniformRandomVariable>();
-
-	for (uint16_t i = 0; i < config.Nsta; i++) {
-		ApplicationContainer clientApp = clientHelper.Install(
-				wifiStaNode.Get(i));
-		clientApp.Get(0)->TraceConnectWithoutContext("Tx",
-				MakeCallback(&NodeEntry::OnUdpPacketSent, nodes[i]));
-		clientApp.Get(0)->TraceConnectWithoutContext("Rx",
-				MakeCallback(&NodeEntry::OnUdpEchoPacketReceived, nodes[i]));
-
-		double random = m_rv->GetValue(0, config.trafficInterval);
-		clientApp.Start(MilliSeconds(0 + random));
-		//clientApp.Stop(Seconds(simulationTime + 1));
-	}
-}
 
 Time timeIdleArray[MaxSta];
 Time timeRxArray[MaxSta];
@@ -1105,23 +827,21 @@ void PhyStateTrace(std::string context, Time start, Time duration,
 		{
 		case WifiPhy::State::SLEEP: //Sleep
 			timeSleepArray[node] = timeSleepArray[node] + duration;
-			//NS_LOG_UNCOND(to_string(node + 1) + ",SLEEP," + to_string(start.GetMicroSeconds()) + " " + to_string(duration.GetMicroSeconds()));
 			break;
 		case WifiPhy::State::IDLE: //Idle
 			timeIdleArray[node] = timeIdleArray[node] + duration;
-			//NS_LOG_UNCOND(to_string(node + 1) + ",IDLE," + to_string(start.GetMicroSeconds()) + " " + to_string(duration.GetMicroSeconds()));
 			break;
 		case WifiPhy::State::TX: //Tx
 			timeTxArray[node] = timeTxArray[node] + duration;
-			//NS_LOG_UNCOND (to_string(node+1) + ",TX," + to_string(start.GetMicroSeconds()) + " " + to_string(duration.GetMicroSeconds()));
 			break;
 		case WifiPhy::State::RX: //Rx
 			timeRxArray[node] = timeRxArray[node] + duration;
-			//NS_LOG_UNCOND (to_string(node+1) + ",RX," + to_string(start.GetMicroSeconds()) + " " + to_string(duration.GetMicroSeconds()));
 			break;
 		case WifiPhy::State::CCA_BUSY: //CCA_BUSY
 			timeCollisionArray[node] = timeCollisionArray[node] + duration;
-			//NS_LOG_UNCOND (to_string(node+1) + ",CCA_BUSY," + to_string(start.GetMicroSeconds()) + " " + to_string(duration.GetMicroSeconds()));
+			break;
+		case WifiPhy::State::SWITCHING:
+			// RV: no stats on this?
 			break;
 		}
 	}
@@ -1131,59 +851,70 @@ void PhyStateTrace(std::string context, Time start, Time duration,
 		{
 		case WifiPhy::State::SLEEP: //Sleep
 			timeSleepNotAssociated[node] = timeSleepNotAssociated[node] + duration;
-			//NS_LOG_UNCOND(to_string(node + 1) + ",SLEEP," + to_string(start.GetMicroSeconds()) + " " + to_string(duration.GetMicroSeconds()));
 			break;
 		case WifiPhy::State::IDLE: //Idle
 			timeIdleNotAssociated[node] = timeIdleNotAssociated[node] + duration;
-			//NS_LOG_UNCOND(to_string(node + 1) + ",IDLE," + to_string(start.GetMicroSeconds()) + " " + to_string(duration.GetMicroSeconds()));
 			break;
 		case WifiPhy::State::TX: //Tx
 			timeTxNotAssociated[node] = timeTxNotAssociated[node] + duration;
-			//NS_LOG_UNCOND (to_string(node+1) + ",TX," + to_string(start.GetMicroSeconds()) + " " + to_string(duration.GetMicroSeconds()));
 			break;
 		case WifiPhy::State::RX: //Rx
 			timeRxNotAssociated[node] = timeRxNotAssociated[node] + duration;
-			//NS_LOG_UNCOND (to_string(node+1) + ",RX," + to_string(start.GetMicroSeconds()) + " " + to_string(duration.GetMicroSeconds()));
 			break;
 		case WifiPhy::State::CCA_BUSY: //CCA_BUSY
 			timeCollisionNotAssociated[node] = timeCollisionNotAssociated[node] + duration;
-			//NS_LOG_UNCOND (to_string(node+1) + ",CCA_BUSY," + to_string(start.GetMicroSeconds()) + " " + to_string(duration.GetMicroSeconds()));
+			break;
+		case WifiPhy::State::SWITCHING:
+			// RV: no stats on this?
 			break;
 		}
 	}
 }
 
 int main(int argc, char *argv[]) {
-	//LogComponentEnable ("UdpServer", LOG_INFO);
-	 LogComponentEnable ("UdpEchoServerApplication", LOG_INFO);
-	 LogComponentEnable ("UdpEchoClientApplication", LOG_INFO);
+	//LogComponentEnable("TCPSensorServer", LOG_ALL);
+	//LogComponentEnable("TCPSensorClient", LOG_ALL);
+	LogComponentEnable("WUSN", LOG_ALL);
 
-	//LogComponentEnable ("ApWifiMac", LOG_DEBUG);
-	//LogComponentEnable ("StaWifiMac", LOG_DEBUG);
-	//LogComponentEnable ("EdcaTxopN", LOG_DEBUG);
+	CommandLine* cmd = new CommandLine();
+	cmd->AddValue("sensors", "Number of sensors", totalNodes);
+	// cmd.AddValue("perAxis", "Sensors per axis", perAxis);
+	cmd->AddValue("packetSize", "Size of sensor packet", packetSize);
+	cmd->AddValue("totalSize", "Total bytes to be send", totalSize);
+	// cmd.AddValue("areaSize", "Length of side of the area", areaSize);
+	cmd->AddValue("dist", "Length of sewer pipe", sewerLength);
+	cmd->AddValue("depth", "Depth below ground",depth);
+        cmd->AddValue("stopTime", "Simulation time in seconds", simTime);
+        cmd->AddValue("timeOut", "Association timeout in seconds", timeOut);
+	// cmd.Parse(argc, argv);
 
-	bool OutputPosition = true;
-	config = Configuration(argc, argv);
+	// bool OutputPosition = true;
+	config = Configuration(cmd, argc, argv);
+        stopTime = Seconds(simTime);
+
+	if (totalNodes<2) {
+		totalNodes=1;
+		perDist=0;
+	} else {
+		perDist = sewerLength/(totalNodes-1);
+	}
 
 	config.rps = configureRAW(config.rps, config.RAWConfigFile);
-	config.Nsta = config.NRawSta;
 
 	configurePageSlice ();
 	configureTIM ();
 	//checkRawAndTimConfiguration ();
 
-	config.NSSFile = config.trafficType + "_" + std::to_string(config.Nsta)
+	config.NSSFile = config.trafficType + "_" + std::to_string(totalNodes)
 			+ "sta_" + std::to_string(config.NGroup) + "Group_"
 			+ std::to_string(config.NRawSlotNum) + "slots_"
 			+ std::to_string(config.payloadSize) + "payload_"
 			+ std::to_string(config.totaltraffic) + "Mbps_"
 			+ std::to_string(config.BeaconInterval) + "BI" + ".nss";
 
-	stats = Statistics(config.Nsta);
-	eventManager = SimulationEventManager(config.visualizerIP,
-			config.visualizerPort, config.NSSFile);
+	stats = Statistics(totalNodes);
 	uint32_t totalRawGroups(0);
-	for (int i = 0; i < config.rps.rpsset.size(); i++) {
+	for (uint32_t i = 0; i < config.rps.rpsset.size(); i++) {
 		int nRaw = config.rps.rpsset[i]->GetNumberOfRawGroups();
 		totalRawGroups += nRaw;
 		//cout << "Total raw groups after rps " << i << " is " << totalRawGroups << endl;
@@ -1198,18 +929,72 @@ int main(int argc, char *argv[]) {
 	transmissionsPerTIMGroupAndSlotFromSTASinceLastInterval = vector<long>(
 			config.totalRawSlots, 0);
 
-	RngSeedManager::SetSeed(config.seed);
 
-	wifiStaNode.Create(config.Nsta);
-	wifiApNode.Create(1);
 
-	YansWifiChannelHelper channelBuilder = YansWifiChannelHelper();
-	channelBuilder.AddPropagationLoss("ns3::LogDistancePropagationLossModel",
-			"Exponent", DoubleValue(3.76), "ReferenceLoss", DoubleValue(8.0),
-			"ReferenceDistance", DoubleValue(1.0));
-	channelBuilder.SetPropagationDelay(
-			"ns3::ConstantSpeedPropagationDelayModel");
-	Ptr<YansWifiChannel> channel = channelBuilder.Create();
+
+
+
+
+
+	wifiStaNode.Create(totalNodes);
+	wifiApNode.Create(gateways * gateways);
+
+
+
+	// **********************
+	//  mobility.
+	// **********************
+	MobilityHelper mobilitySta;
+	mobilitySta.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+	mobilitySta.Install(wifiStaNode);
+
+
+
+	MobilityHelper mobilityAp;
+	mobilityAp.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+	mobilityAp.Install(wifiApNode);
+
+	  // Make it so that nodes are at a certain height > 0
+  int counter = 0;
+  for (NodeContainer::Iterator j = wifiStaNode.Begin (); j != wifiStaNode.End (); ++j)
+    {
+      Ptr<MobilityModel> mobility = (*j)->GetObject<MobilityModel> ();
+    	double dist = sewerLength / perAxis;
+       double x = dist * (counter % perAxis);
+        double y = dist * int(counter / perAxis);
+
+      Vector position = mobility->GetPosition ();
+      position.x = x;
+      position.y = y;
+      position.z = -depth;
+      mobility->SetPosition (position);
+      
+      counter++;
+    }
+
+
+  for (uint32_t i = 0; i < gateways * gateways; i++)
+  {
+    //int perAxis = gateways;
+    //double dist = 5049 / perAxis;
+    //double x = dist * (i % perAxis);
+    //double y = dist * int(i / perAxis);
+    wifiApNode.Get(i)->GetObject<MobilityModel>()->SetPosition(Vector(0,0,2));
+  }
+
+
+	// *************
+	// CHANNEL 
+	// ************
+
+	Ptr<WUSNLossModel> loss = CreateObject<WUSNLossModel>();
+  	loss->frequency = 868000000;
+
+  	Ptr<PropagationDelayModel> delay = CreateObject<ConstantSpeedPropagationDelayModel> ();
+
+  	Ptr<YansWifiChannel> channel = CreateObject<YansWifiChannel> ();
+	  channel->SetPropagationLossModel(loss);
+	  channel->SetPropagationDelayModel(delay);
 	channel->TraceConnectWithoutContext("Transmission",
 			MakeCallback(&onChannelTransmission)); //TODO
 
@@ -1217,17 +1002,17 @@ int main(int argc, char *argv[]) {
 	phy.SetErrorRateModel("ns3::YansErrorRateModel");
 	phy.SetChannel(channel);
 	phy.Set("ShortGuardEnabled", BooleanValue(false));
-	phy.Set("ChannelWidth", UintegerValue(getBandwidth(config.DataMode))); // changed
-	phy.Set("EnergyDetectionThreshold", DoubleValue(-110.0));
-	phy.Set("CcaMode1Threshold", DoubleValue(-113.0));
-	phy.Set("TxGain", DoubleValue(0.0));
+	phy.Set("ChannelWidth", UintegerValue(1)); // changed
+	phy.Set("EnergyDetectionThreshold", DoubleValue(-130.0));
+	phy.Set("CcaMode1Threshold", DoubleValue(-130.0));
+	phy.Set("TxGain", DoubleValue(14.0));
 	phy.Set("RxGain", DoubleValue(0.0));
 	phy.Set("TxPowerLevels", UintegerValue(1));
-	phy.Set("TxPowerEnd", DoubleValue(0.0));
-	phy.Set("TxPowerStart", DoubleValue(0.0));
 	phy.Set("RxNoiseFigure", DoubleValue(6.8));
 	phy.Set("LdpcEnabled", BooleanValue(true));
-	phy.Set("S1g1MfieldEnabled", BooleanValue(config.S1g1MfieldEnabled));
+	phy.Set("S1g1MfieldEnabled", BooleanValue(true));
+	phy.Set("Frequency", UintegerValue(900));
+
 
 	WifiHelper wifi = WifiHelper::Default();
 	wifi.SetStandard(WIFI_PHY_STANDARD_80211ah);
@@ -1235,10 +1020,9 @@ int main(int argc, char *argv[]) {
 
 	Ssid ssid = Ssid("ns380211ah");
 	StringValue DataRate;
-	DataRate = StringValue(getWifiMode(config.DataMode)); // changed
+	DataRate = StringValue("OfdmRate1_2MbpsBW1MHz"); // changed
 
-	wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager", "DataMode",DataRate, "ControlMode", DataRate);
-    //wifi.SetRemoteStationManager("ns3::ArfWifiManager");
+	wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager", "DataMode", DataRate, "ControlMode", DataRate);
 
 
 	mac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid), "ActiveProbing",
@@ -1271,27 +1055,7 @@ int main(int argc, char *argv[]) {
 	Config::Set(
 			"/NodeList/*/DeviceList/0/$ns3::WifiNetDevice/Mac/$ns3::RegularWifiMac/BE_EdcaTxopN/Queue/MaxDelay",
 			TimeValue(NanoSeconds(6000000000000)));
-/*
-	string DataModeCamera = "OfdmRate650KbpsBW2MHz";
-	StringValue aa = StringValue(DataModeCamera);
-	for (uint16_t k = 0; k < config.Nsta; k++) {
-		std::ostringstream APSTA;
-		APSTA << k;
-		std::string strAP = APSTA.str();
-		Config::Set(
-				"/NodeList/" + strAP
-						+ "/DeviceList/0/$ns3::WifiNetDevice/RemoteStationManager/$ns3::ConstantRateWifiManager/DataMode",
-				aa);
-		Config::Set(
-				"/NodeList/" + strAP
-						+ "/DeviceList/0/$ns3::WifiNetDevice/RemoteStationManager/$ns3::ConstantRateWifiManager/ControlMode",
-				aa);
-		Config::Set(
-				"/NodeList/" + strAP
-						+ "/DeviceList/0/$ns3::WifiNetDevice/Phy/$ns3::YansWifiPhy/ChannelWidth",
-				UintegerValue(2));
-	}
-*/
+
 	std::ostringstream oss;
 	oss << "/NodeList/" << wifiApNode.Get(0)->GetId()
 			<< "/DeviceList/0/$ns3::WifiNetDevice/Mac/$ns3::RegularWifiMac/$ns3::ApWifiMac/";
@@ -1299,59 +1063,15 @@ int main(int argc, char *argv[]) {
 	Config::ConnectWithoutContext(oss.str() + "RawGroup", MakeCallback(&RawGroupTrace));
 	Config::ConnectWithoutContext(oss.str() + "RawSlot", MakeCallback(&RawSlotTrace));
 
-	// mobility.
-	MobilityHelper mobility;
-	double xpos = std::stoi(config.rho, nullptr, 0);
-	double ypos = xpos;
-	mobility.SetPositionAllocator("ns3::UniformDiscPositionAllocator", "X",
-			StringValue(std::to_string(xpos)), "Y",
-			StringValue(std::to_string(ypos)), "rho", StringValue(config.rho));
-	mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
-	mobility.Install(wifiStaNode);
-
-	MobilityHelper mobilityAp;
-	Ptr<ListPositionAllocator> positionAlloc = CreateObject<
-			ListPositionAllocator>();
-	positionAlloc->Add(Vector(xpos, ypos, 0.0));
-	mobilityAp.SetPositionAllocator(positionAlloc);
-	mobilityAp.SetMobilityModel("ns3::ConstantPositionMobilityModel");
-	mobilityAp.Install(wifiApNode);
-
-	/*
-
-	 MobilityHelper mobilityApCamera;
-	 Ptr<ListPositionAllocator> positionAllocAp = CreateObject<ListPositionAllocator> ();
-	 positionAllocAp->Add (Vector (xpos, ypos, 0.0));
-	 mobilityApCamera.SetPositionAllocator (positionAllocAp);
-	 mobilityApCamera.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
-	 mobilityApCamera.Install (wifiApNode);
-
-	 float deltaAngle = 2* M_PI / (config.tcpipcameraEnd - config.tcpipcameraStart +1);
-	 float angle = 0.0;
-	 double x = 0.0;
-	 double y = 0.0;
-
-	 double Distance = 50.0;
 
 
-	 Ptr<UniformRandomVariable> m_rv = CreateObject<UniformRandomVariable> ();
 
 
-	 for (int i = config.tcpipcameraStart; i <= config.tcpipcameraEnd; i++)
-	 {
-	 x = cos(angle) * Distance + xpos;
-	 y = sin(angle) * Distance + ypos;
 
-	 MobilityHelper mobilityCamera;
-	 Ptr<ListPositionAllocator> positionAllocSta = CreateObject<ListPositionAllocator> ();
-	 positionAllocSta->Add(Vector(x, y, 0.0));
-	 mobilityCamera.SetPositionAllocator(positionAllocSta);
-	 mobilityCamera.SetMobilityModel("ns3::ConstantPositionMobilityModel");
-	 mobilityCamera.Install(wifiStaNode.Get(i));
-	 angle += deltaAngle;
-	 }
 
-	 */
+
+
+
 
 	/* Internet stack*/
 	InternetStackHelper stack;
@@ -1367,7 +1087,7 @@ int main(int argc, char *argv[]) {
 
 	//trace association
 	std::cout << "Configuring trace sources..." << std::endl;
-	for (uint16_t kk = 0; kk < config.Nsta; kk++) {
+	for (uint16_t kk = 0; kk < (totalNodes); kk++) {
 		std::ostringstream STA;
 		STA << kk;
 		std::string strSTA = STA.str();
@@ -1384,156 +1104,68 @@ int main(int argc, char *argv[]) {
 				MakeCallback(&assoc_record::UnsetAssoc, m_assocrecord));
 		assoc_vector.push_back(m_assocrecord);
 	}
+	
 
-	std::cout << "Populating routing tables..." << std::endl;
 	Ipv4GlobalRoutingHelper::PopulateRoutingTables();
-	std::cout << "Populating ARP cache..." << std::endl;
 	PopulateArpCache();
-
-	// configure tracing for associations & other metrics
-	std::cout << "Configuring trace sinks for nodes..." << std::endl;
 	configureNodes(wifiStaNode, staDevice);
-
 	Config::Connect(
-			"/NodeList/" + std::to_string(config.Nsta)
+			"/NodeList/" + std::to_string(totalNodes)
 					+ "/DeviceList/0/$ns3::WifiNetDevice/Phy/PhyRxDropWithReason",
 			MakeCallback(&OnAPPhyRxDrop));
 	Config::Connect(
-			"/NodeList/" + std::to_string(config.Nsta)
+			"/NodeList/" + std::to_string(totalNodes)
 					+ "/DeviceList/0/$ns3::WifiNetDevice/Mac/$ns3::ApWifiMac/PacketToTransmitReceivedFromUpperLayer",
 			MakeCallback(&OnAPPacketToTransmitReceived));
 
+
 	Ptr<MobilityModel> mobility1 =
 			wifiApNode.Get(0)->GetObject<MobilityModel>();
-	Vector apposition = mobility1->GetPosition();
-	if (OutputPosition) {
-		uint32_t i = 0;
-		while (i < config.Nsta) {
-			Ptr<MobilityModel> mobility = wifiStaNode.Get(i)->GetObject<
-					MobilityModel>();
-			Vector position = mobility->GetPosition();
-			nodes[i]->x = position.x;
-			nodes[i]->y = position.y;
-			std::cout << "Sta node#" << i << ", " << "position = " << position
-					<< std::endl;
-			dist[i] = mobility->GetDistanceFrom(
-					wifiApNode.Get(0)->GetObject<MobilityModel>());
-			i++;
-		}
-		std::cout << "AP node, position = " << apposition << std::endl;
-	}
+	// Vector apposition = mobility1->GetPosition();
+	// uint32_t i = 0;
 
-	/*Print of the state of the stations*/
-	for (uint32_t i = 0; i < config.Nsta; i++) {
-		std::ostringstream STA;
-		STA << i;
-		std::string strSTA = STA.str();
 
-		Config::Connect(
-				"/NodeList/" + strSTA
-						+ "/DeviceList/*/Phy/$ns3::YansWifiPhy/State/State",
-				MakeCallback(&PhyStateTrace));
-	}
 
-	eventManager.onStartHeader();
-	eventManager.onStart(config);
-	if (config.rps.rpsset.size() > 0)
-		for (uint32_t i = 0; i < config.rps.rpsset.size(); i++)
-			for (uint32_t j = 0;
-					j < config.rps.rpsset[i]->GetNumberOfRawGroups(); j++)
-				eventManager.onRawConfig(i, j,
-						config.rps.rpsset[i]->GetRawAssigmentObj(j));
+	sendStatistics(false);
 
-	for (uint32_t i = 0; i < config.Nsta; i++)
-		eventManager.onSTANodeCreated(*nodes[i]);
 
-	eventManager.onAPNodeCreated(apposition.x, apposition.y);
-	eventManager.onStatisticsHeader();
 
-	sendStatistics(true);
-
-	Simulator::Stop(Seconds(config.simulationTime + config.CoolDownPeriod)); // allow up to a minute after the client & server apps are finished to process the queue
+	//******************
+	// SIMULATION
+	//******************
+        Simulator::Schedule(Seconds(timeOut), &AssocTimeoutStartSending);
+	Simulator::Stop(stopTime); // allow up to a minute after the client & server apps are finished to process the queue
 	Simulator::Run();
 
 	// Visualizer throughput
 	int pay = 0, totalSuccessfulPackets = 0, totalSentPackets = 0, totalPacketsEchoed = 0;
-	for (int i = 0; i < config.Nsta; i++)
+	bool delivered = true;
+	for (uint32_t i = 0; i < (totalNodes); i++)
 	{
+		if (stats.get(i).NumberOfSuccessfulPackets == 0)
+		{
+			delivered = false;
+		}
 		totalSuccessfulPackets += stats.get(i).NumberOfSuccessfulPackets;
 		totalSentPackets += stats.get(i).NumberOfSentPackets;
-		totalPacketsEchoed += stats.get(i).NumberOfSuccessfulRoundtripPackets;
 		pay += stats.get(i).TotalPacketPayloadSize;
 		cout << i << " sent: " << stats.get(i).NumberOfSentPackets
 				<< " ; delivered: " << stats.get(i).NumberOfSuccessfulPackets
-				<< " ; echoed: " << stats.get(i).NumberOfSuccessfulRoundtripPackets
-				<< "; packetloss: "
-				<< stats.get(i).GetPacketLoss(config.trafficType) << endl;
+				<< "; retransmissions:" << stats.get(i).NumberOfTCPRetransmissions
+				<< "; TotalPacketPayloadSize:" << stats.get(i).TotalPacketPayloadSize << std::endl;
+
 	}
 
-	if (config.trafficType == "udp")
+	if (!delivered)
 	{
-		double throughput = 0;
-		uint32_t totalPacketsThrough =
-				DynamicCast<UdpServer>(serverApp.Get(0))->GetReceived();
-		throughput = totalPacketsThrough * config.payloadSize * 8
-				/ (config.simulationTime * 1000000.0);
-		cout << "totalPacketsThrough " << totalPacketsThrough << " ++my "
-				<< totalSuccessfulPackets << endl;
-		cout << "throughput " << throughput << " ++my "
-				<< pay * 8. / (config.simulationTime * 1000000.0) << endl;
-		std::cout << "datarate" << "\t" << "throughput" << std::endl;
-		std::cout << config.datarate << "\t" << throughput << " Mbit/s"
-				<< std::endl;
-
+		cout << "missed" << std::endl;
 	}
-	else if (config.trafficType == "udpecho")
-	{
-		double ulThroughput = 0, dlThroughput = 0;
-		ulThroughput = totalSuccessfulPackets * config.payloadSize * 8 / (config.simulationTime * 1000000.0);
-		dlThroughput = totalPacketsEchoed * config.payloadSize * 8 / (config.simulationTime * 1000000.0);
-		cout << "totalPacketsSent " << totalSentPackets << endl;
-		cout << "totalPacketsDelivered " << totalSuccessfulPackets << endl;
-		cout << "totalPacketsEchoed " << totalPacketsEchoed << endl;
-		cout << "UL packets lost " << totalSentPackets - totalSuccessfulPackets << endl;
-		cout << "DL packets lost " << totalSuccessfulPackets - totalPacketsEchoed << endl;
-		cout << "Total packets lost " << totalSentPackets - totalPacketsEchoed << endl;
 
-		/*cout << "uplink throughput Mbit/s " << ulThroughput << endl;
-		cout << "downlink throughput Mbit/s " << dlThroughput << endl;*/
+    cout << "total send " << totalSuccessfulPackets << " needed: 413" << std::endl;
 
-		double throughput = (totalSuccessfulPackets + totalPacketsEchoed) * config.payloadSize * 8 / (config.simulationTime * 1000000.0);
-		cout << "total throughput Kbit/s " << throughput * 1000 << endl;
-
-		std::cout << "datarate" << "\t" << "throughput" << std::endl;
-		std::cout << config.datarate << "\t" << throughput * 1000 << " Kbit/s" << std::endl;
-	}
 	cout << "total packet loss % "
 			<< 100 - 100. * totalPacketsEchoed / totalSentPackets << endl;
 	Simulator::Destroy();
 
-	ofstream risultati;
-	string addressresults = config.OutputPath + "moreinfo.txt";
-	risultati.open(addressresults.c_str(), ios::out | ios::trunc);
-
-    risultati << "Sta node#,distance,timerx(notassociated),timeidle(notassociated),timetx(notassociated),timesleep(notassociated),timecollision(notassociated)" << std::endl;
-    int i = 0;
-    string spazio = ",";
-    
-    while (i < config.Nsta) {
-        
-        risultati << i << spazio << dist[i] << spazio << timeRxArray[i].GetSeconds() << ",(" << timeRxNotAssociated[i].GetSeconds() << ")," << timeIdleArray[i].GetSeconds() << ",(" << timeIdleNotAssociated[i].GetSeconds() << ")," << timeTxArray[i].GetSeconds() << ",(" << timeTxNotAssociated[i].GetSeconds() << ")," << timeSleepArray[i].GetSeconds() << ",(" << timeSleepNotAssociated[i].GetSeconds() << ")," << timeCollisionArray[i].GetSeconds() << ",(" << timeCollisionNotAssociated[i].GetSeconds() << ")" << std::endl;
-        /*
-         cout << "================== Sleep " << stats.get(i).TotalSleepTime.GetSeconds() << endl;
-         cout << "================== Tx " << stats.get(i).TotalTxTime.GetSeconds() << endl;
-         cout << "================== Rx " << stats.get(i).TotalRxTime.GetSeconds() << endl;
-         cout << "+++++++++++++++++++IDLE " << stats.get(i).TotalIdleTime.GetSeconds() << endl;
-         cout << "ooooooooooooooooooo TOTENERGY " <<  stats.get(i).GetTotalEnergyConsumption() << " mW" << endl;
-         cout << "Rx+Idle ENERGY " <<  stats.get(i).EnergyRxIdle << " mW" << endl;
-         cout << "Tx ENERGY " <<  stats.get(i).EnergyTx << " mW" << endl;*/
-        
-        i++;
-    }
-
-	risultati.close();
 	return 0;
 }

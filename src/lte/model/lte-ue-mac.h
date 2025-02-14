@@ -34,6 +34,7 @@
 #include <vector>
 #include <ns3/packet.h>
 #include <ns3/packet-burst.h>
+#include <ns3/lte-ue-rrc.h>
 
 
 namespace ns3 {
@@ -94,7 +95,10 @@ private:
 
   // forwarded from UE CMAC SAP
   void DoConfigureRach (LteUeCmacSapProvider::RachConfig rc);
+  //for nb-iot
+  void DoConfigureNpdcch (LteUeCmacSapProvider::NpdcchConfig nc);
   void DoStartContentionBasedRandomAccessProcedure ();
+  void DoStartContentionBasedRandomAccessProcedure (uint64_t m_imsi, int repetitionOfPreamble_UE,int preambleTransmissionAttempt_UE,int periodicity_UE,int startTime_UE);//for NB-IoT
   void DoStartNonContentionBasedRandomAccessProcedure (uint16_t rnti, uint8_t rapId, uint8_t prachMask);
   void DoAddLc (uint8_t lcId, LteUeCmacSapProvider::LogicalChannelConfig lcConfig, LteMacSapUser* msu);
   void DoRemoveLc (uint8_t lcId);
@@ -106,20 +110,43 @@ private:
   
   // internal methods
   void RandomlySelectAndSendRaPreamble ();
+  void RandomlySelectAndSendRaPreamble (int repetitionOfPreamble_UE,int preambleTransmissionAttempt_UE,int periodicity_UE,int startTime_UE);//for NB-IoT
   void SendRaPreamble (bool contention);
+  void SendRaPreamble (int repetitionOfPreamble_UE,int preambleTransmissionAttempt_UE,int periodicity_UE,int startTime_UE);//for NB-IoT
   void StartWaitingForRaResponse ();
   void RecvRaResponse (BuildRarListElement_s raResponse);
   void RaResponseTimeout (bool contention);
+  void RaResponseTimeout_NB (int repetitionOfPreamble_UE,int preambleTransmissionAttempt_UE,int periodicity_UE,int startTime_UE);//for NB-IoT
   void SendReportBufferStatus (void);
   void RefreshHarqProcessesPacketBuffer (void);
 
 private:
+
+  //for nb-iot
+  // these parameter is for msg4 scheduling
+  struct NPRACH_Parameters_NB_r13
+  {
+    uint16_t npdcch_NumRepetitions_RA_r13;
+    uint16_t npdcch_StartSF_CSS_RA_r13;
+    double npdcch_Offset_RA_r13;
+  };
+
+  //for nb-iot
+  // we first configure parameters for msg4 scheduling before RAR
+  // so we do it in SendRaPreamble() and waiting in RecvRaResponse()
+  uint16_t m_rep;
+  uint16_t m_startsf;
+  double m_offset;
 
   struct LcInfo
   {
     LteUeCmacSapProvider::LogicalChannelConfig lcConfig;
     LteMacSapUser* macSapUser;
   };
+
+  //for nb-iot
+  // use function in ue_rrc to send msg4 scheduling parameter
+  LteUeRrc* m_ueRrc = new LteUeRrc;
 
   std::map <uint8_t, LcInfo> m_lcInfoMap;
 
@@ -147,8 +174,21 @@ private:
 
   bool m_rachConfigured;
   LteUeCmacSapProvider::RachConfig m_rachConfig;
+  //for nb-iot
+  bool m_npdcchConfigured;
+  LteUeCmacSapProvider::NpdcchConfig m_npdcchConfig;
+
   uint8_t m_raPreambleId;
   uint8_t m_preambleTransmissionCounter;
+
+  //for NB-IoT
+  uint64_t UE_IMSI;
+  int m_preambleTransmissionRepetitionCounter;
+  int transmissionLastTime;
+  int testCounter;
+  int startSendTime;
+  int totalSpendTime;
+
   uint16_t m_backoffParameter;
   EventId m_noRaResponseReceivedEvent;
   Ptr<UniformRandomVariable> m_raPreambleUniformVariable;

@@ -32,6 +32,9 @@
 #include "lte-enb-net-device.h"
 #include "lte-ue-net-device.h"
 
+//for nb-iot
+#include "lte-rrc-sap.h"
+
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("LteRrcProtocolReal");
@@ -191,6 +194,13 @@ LteUeRrcProtocolReal::DoSendMeasurementReport (LteRrcSap::MeasurementReport msg)
 
   m_setupParameters.srb1SapProvider->TransmitPdcpSdu (transmitPdcpSduParameters);
 }
+
+//for nb-iot
+// void 
+// LteUeRrcProtocolReal::DoSendCE (int64_t imsi, uint16_t rnti, int judge_ce_level)
+// {
+  
+// }
 
 void 
 LteUeRrcProtocolReal::DoSendRrcConnectionReestablishmentRequest (LteRrcSap::RrcConnectionReestablishmentRequest msg)
@@ -505,6 +515,7 @@ LteEnbRrcProtocolReal::DoRemoveUe (uint16_t rnti)
 void 
 LteEnbRrcProtocolReal::DoSendSystemInformation (LteRrcSap::SystemInformation msg)
 {
+  std::cout << "realllllllllllllllllllllll" << std::endl;
   NS_LOG_FUNCTION (this << m_cellId);
   // walk list of all nodes to get UEs with this cellId
   Ptr<LteUeRrc> ueRrc;

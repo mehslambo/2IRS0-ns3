@@ -1,0 +1,156 @@
+Waf: Entering directory `/home/pverhoev/ns3/Protocol_comparison/ns3-halow/build'
+Waf: Leaving directory `/home/pverhoev/ns3/Protocol_comparison/ns3-halow/build'
+Build commands will be stored in build/compile_commands.json
+'build' finished successfully (5.101s)
+Unable to open RAW configuration file 
+Configuring trace sources...
+Arp Cache: Adding the pair (00:00:00:00:00:01,192.168.0.1)
+Arp Cache: Adding the pair (00:00:00:00:00:02,192.168.0.2)
+Arp Cache: Adding the pair (00:00:00:00:00:03,192.168.0.3)
+Arp Cache: Adding the pair (00:00:00:00:00:04,192.168.0.4)
+Arp Cache: Adding the pair (00:00:00:00:00:05,192.168.0.5)
+Arp Cache: Adding the pair (00:00:00:00:00:06,192.168.0.6)
+Arp Cache: Adding the pair (00:00:00:00:00:07,192.168.0.7)
+Arp Cache: Adding the pair (00:00:00:00:00:08,192.168.0.8)
+Arp Cache: Adding the pair (00:00:00:00:00:09,192.168.0.9)
+Arp Cache: Adding the pair (00:00:00:00:00:0a,192.168.0.10)
+Arp Cache: Adding the pair (00:00:00:00:00:0b,192.168.0.11)
+Arp Cache: Adding the pair (00:00:00:00:00:0c,192.168.0.12)
+Arp Cache: Adding the pair (00:00:00:00:00:0d,192.168.0.13)
+Arp Cache: Adding the pair (00:00:00:00:00:0e,192.168.0.14)
+Arp Cache: Adding the pair (00:00:00:00:00:0f,192.168.0.15)
+Arp Cache: Adding the pair (00:00:00:00:00:10,192.168.0.16)
+Arp Cache: Adding the pair (00:00:00:00:00:11,192.168.0.17)
+Arp Cache: Adding the pair (00:00:00:00:00:12,192.168.0.18)
+Arp Cache: Adding the pair (00:00:00:00:00:13,192.168.0.19)
+Arp Cache: Adding the pair (00:00:00:00:00:14,192.168.0.20)
+Arp Cache: Adding the pair (00:00:00:00:00:15,192.168.0.21)
+Arp Cache: Adding the pair (00:00:00:00:00:16,192.168.0.22)
+Arp Cache: Adding the pair (00:00:00:00:00:17,192.168.0.23)
+Arp Cache: Adding the pair (00:00:00:00:00:18,192.168.0.24)
+Arp Cache: Adding the pair (00:00:00:00:00:19,192.168.0.25)
+Arp Cache: Adding the pair (00:00:00:00:00:1a,192.168.0.26)
+Arp Cache: Adding the pair (00:00:00:00:00:1b,192.168.0.27)
+Arp Cache: Adding the pair (00:00:00:00:00:1c,192.168.0.28)
+Arp Cache: Adding the pair (00:00:00:00:00:1d,192.168.0.29)
+Arp Cache: Adding the pair (00:00:00:00:00:1e,192.168.0.30)
+Arp Cache: Adding the pair (00:00:00:00:00:1f,192.168.0.31)
+Arp Cache: Adding the pair (00:00:00:00:00:20,192.168.0.32)
+Arp Cache: Adding the pair (00:00:00:00:00:21,192.168.0.33)
+Arp Cache: Adding the pair (00:00:00:00:00:22,192.168.0.34)
+Arp Cache: Adding the pair (00:00:00:00:00:23,192.168.0.35)
+Arp Cache: Adding the pair (00:00:00:00:00:24,192.168.0.36)
+Arp Cache: Adding the pair (00:00:00:00:00:25,192.168.0.37)
+Arp Cache: Adding the pair (00:00:00:00:00:26,192.168.0.38)
+Arp Cache: Adding the pair (00:00:00:00:00:27,192.168.0.39)
+Arp Cache: Adding the pair (00:00:00:00:00:28,192.168.0.40)
+Arp Cache: Adding the pair (00:00:00:00:00:29,192.168.0.41)
+Arp Cache: Adding the pair (00:00:00:00:00:2a,192.168.0.42)
+Arp Cache: Adding the pair (00:00:00:00:00:2b,192.168.0.43)
+Arp Cache: Adding the pair (00:00:00:00:00:2c,192.168.0.44)
+Arp Cache: Adding the pair (00:00:00:00:00:2d,192.168.0.45)
+Arp Cache: Adding the pair (00:00:00:00:00:2e,192.168.0.46)
+Arp Cache: Adding the pair (00:00:00:00:00:2f,192.168.0.47)
+Arp Cache: Adding the pair (00:00:00:00:00:30,192.168.0.48)
+Arp Cache: Adding the pair (00:00:00:00:00:31,192.168.0.49)
+Configuring STA Node trace sources...
+Hooking up trace sources for STA 0
+Hooking up trace sources for STA 1
+Hooking up trace sources for STA 2
+Hooking up trace sources for STA 3
+Hooking up trace sources for STA 4
+Hooking up trace sources for STA 5
+Hooking up trace sources for STA 6
+Hooking up trace sources for STA 7
+Hooking up trace sources for STA 8
+Hooking up trace sources for STA 9
+Hooking up trace sources for STA 10
+Hooking up trace sources for STA 11
+Hooking up trace sources for STA 12
+Hooking up trace sources for STA 13
+Hooking up trace sources for STA 14
+Hooking up trace sources for STA 15
+Hooking up trace sources for STA 16
+Hooking up trace sources for STA 17
+Hooking up trace sources for STA 18
+Hooking up trace sources for STA 19
+Hooking up trace sources for STA 20
+Hooking up trace sources for STA 21
+Hooking up trace sources for STA 22
+Hooking up trace sources for STA 23
+Hooking up trace sources for STA 24
+Hooking up trace sources for STA 25
+Hooking up trace sources for STA 26
+Hooking up trace sources for STA 27
+Hooking up trace sources for STA 28
+Hooking up trace sources for STA 29
+Hooking up trace sources for STA 30
+Hooking up trace sources for STA 31
+Hooking up trace sources for STA 32
+Hooking up trace sources for STA 33
+Hooking up trace sources for STA 34
+Hooking up trace sources for STA 35
+Hooking up trace sources for STA 36
+Hooking up trace sources for STA 37
+Hooking up trace sources for STA 38
+Hooking up trace sources for STA 39
+Hooking up trace sources for STA 40
+Hooking up trace sources for STA 41
+Hooking up trace sources for STA 42
+Hooking up trace sources for STA 43
+Hooking up trace sources for STA 44
+Hooking up trace sources for STA 45
+Hooking up trace sources for STA 46
+Hooking up trace sources for STA 47
+Sta node#0, position = 0:0:0
+Sta node#1, position = 0:0:0
+Sta node#2, position = 0:0:0
+Sta node#3, position = 0:0:0
+Sta node#4, position = 0:0:0
+Sta node#5, position = 0:0:0
+Sta node#6, position = 0:0:0
+Sta node#7, position = 0:0:0
+Sta node#8, position = 0:0:0
+Sta node#9, position = 0:0:0
+Sta node#10, position = 0:0:0
+Sta node#11, position = 0:0:0
+Sta node#12, position = 0:0:0
+Sta node#13, position = 0:0:0
+Sta node#14, position = 0:0:0
+Sta node#15, position = 0:0:0
+Sta node#16, position = 0:0:0
+Sta node#17, position = 0:0:0
+Sta node#18, position = 0:0:0
+Sta node#19, position = 0:0:0
+Sta node#20, position = 0:0:0
+Sta node#21, position = 0:0:0
+Sta node#22, position = 0:0:0
+Sta node#23, position = 0:0:0
+Sta node#24, position = 0:0:0
+Sta node#25, position = 0:0:0
+Sta node#26, position = 0:0:0
+Sta node#27, position = 0:0:0
+Sta node#28, position = 0:0:0
+Sta node#29, position = 0:0:0
+Sta node#30, position = 0:0:0
+Sta node#31, position = 0:0:0
+Sta node#32, position = 0:0:0
+Sta node#33, position = 0:0:0
+Sta node#34, position = 0:0:0
+Sta node#35, position = 0:0:0
+Sta node#36, position = 0:0:0
+Sta node#37, position = 0:0:0
+Sta node#38, position = 0:0:0
+Sta node#39, position = 0:0:0
+Sta node#40, position = 0:0:0
+Sta node#41, position = 0:0:0
+Sta node#42, position = 0:0:0
+Sta node#43, position = 0:0:0
+Sta node#44, position = 0:0:0
+Sta node#45, position = 0:0:0
+Sta node#46, position = 0:0:0
+Sta node#47, position = 0:0:0
+AP node, position = 650:650:3
+terminate called after throwing an instance of 'std::out_of_range'
+  what():  vector::_M_range_check: __n (which is 0) >= this->size() (which is 0)
+Command ['/home/pverhoev/ns3/Protocol_comparison/ns3-halow/build/scratch/test/test', '--seed=1', '--simulationTime=100', '--payloadSize=256', '--Nsta=81', '--NRawSta=81', '--BeaconInterval=102400', '--DataMode=MCS2_0', '--datarate=7.8', '--bandWidth=2', '--rho=50', '--Outputpath=./OptimalRawGroup/traffic-4/NRawGroups2-NumSlot3/simResult-81-seed1/', '--S1g1MfieldEnabled=false', '--RAWConfigFile=./OptimalRawGroup/RawConfig-81-2-3.txt', '--TrafficPath=./OptimalRawGroup/traffic/data-81-4.txt'] terminated with signal SIGIOT. Run it under a debugger to get more information (./waf --run <program> --command-template="gdb --args %s <args>").

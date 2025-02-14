@@ -210,7 +210,7 @@ void TcpServer::Write(Address to, char* data, int size) {
 	// send blocks if queue exceeds packet size
 	while (handles[to].txBuffer.size() > m_size) {
 		uint8_t* block = new uint8_t[m_size];
-		for (int i = 0; i < m_size; i++) {
+		for (uint32_t i = 0; i < m_size; i++) {
 			block[i] = (uint8_t) handles[to].txBuffer.front();
 			handles[to].txBuffer.pop();
 		}
@@ -225,7 +225,7 @@ int TcpServer::Read(Address from, char* data, int size) {
 		return 0;
 
 	int nrOfBytesRead = (
-			handles[from].rxBuffer.size() > size ?
+			handles[from].rxBuffer.size() > (uint32_t) size ?
 					size : handles[from].rxBuffer.size());
 
 	for (int i = 0; i < nrOfBytesRead; i++) {

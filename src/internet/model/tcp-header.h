@@ -124,6 +124,9 @@ public:
    */
   void SetUrgentPointer (uint16_t urgentPointer);
 
+
+  Address m_source;       //!< Source IP address
+
 //Getters
 
   /**
@@ -333,7 +336,6 @@ private:
   uint16_t m_windowSize;        //!< Window size
   uint16_t m_urgentPointer;     //!< Urgent pointer
 
-  Address m_source;       //!< Source IP address
   Address m_destination;  //!< Destination IP address
   uint8_t m_protocol;     //!< Protocol number
 

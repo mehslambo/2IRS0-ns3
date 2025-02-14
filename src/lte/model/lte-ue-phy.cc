@@ -529,6 +529,7 @@ LteUePhy::GenerateCqiRsrpRsrq (const SpectrumValue& sinr)
           rbNum++;
         }
       double rsrp = (rbNum > 0) ? (sum / rbNum) : DBL_MAX;
+
       // averaged SINR among RBs
       sum = 0.0;
       rbNum = 0;
@@ -856,7 +857,6 @@ LteUePhy::DoSendRachPreamble (uint32_t raPreambleId, uint32_t raRnti)
   m_raRnti = raRnti;
   m_controlMessagesQueue.at (0).push_back (msg);
 }
-
 
 void
 LteUePhy::ReceiveLteControlMessageList (std::list<Ptr<LteControlMessage> > msgList)

@@ -304,10 +304,12 @@ EutranMeasurementMapping::ActualA3Offset2IeValue (double a3OffsetDb)
   return ieValue;
 }
 
+//original value in lTE is -70, 
+//for NB-IoT, change the lower bound to -78(mean -156dBm)
 double
 EutranMeasurementMapping::IeValue2ActualQRxLevMin (int8_t qRxLevMinIeValue)
 {
-  if ((qRxLevMinIeValue < -70) || (qRxLevMinIeValue > -22))
+  if ((qRxLevMinIeValue < -82) || (qRxLevMinIeValue > -22))
     {
       NS_FATAL_ERROR ("The value " << (int16_t) qRxLevMinIeValue
                                    << " is out of the allowed range (-70..-22)"
@@ -315,7 +317,7 @@ EutranMeasurementMapping::IeValue2ActualQRxLevMin (int8_t qRxLevMinIeValue)
     }
 
   double actual = static_cast<double> (qRxLevMinIeValue) * 2;
-  NS_ASSERT (actual >= -140.0);
+  NS_ASSERT (actual >= -164.0);
   NS_ASSERT (actual <= -44.0);
   return actual;
 }
