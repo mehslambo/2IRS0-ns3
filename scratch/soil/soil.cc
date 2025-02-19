@@ -935,15 +935,37 @@ void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet,
     uint32_t senderNodeId;
     sscanf(nodeStr.c_str(), "/NodeList/%u/", &senderNodeId);
 
-    // Get the receiving node
-    Ptr<Node> receiverNode = NodeList::GetNode(senderNodeId);
-    uint32_t receiverNodeId = receiverNode->GetId();
+	// Extract receiver node ID
+	uint32_t receiverNodeId = 0;
+	for (uint32_t i = 0; i < wifiStaNode.GetN(); i++) {
+		if (wifiStaNode.Get(i)->GetId() == senderNodeId) {
+			// If sender is a station, receiver is the AP
+			receiverNodeId = wifiApNode.Get(0)->GetId();
+			break;
+		}
+	}
+	if (receiverNodeId == 0) {
+		// If sender was the AP, need to determine which station was the receiver
+		// We can extract this from the packet headers
+		WifiMacHeader header;
+		packet->PeekHeader(header);
+		Mac48Address receiverAddr = header.GetAddr1();
+		
+		// Find the station with this MAC address
+		for (uint32_t i = 0; i < wifiStaNode.GetN(); i++) {
+			Ptr<WifiNetDevice> dev = wifiStaNode.Get(i)->GetDevice(0)->GetObject<WifiNetDevice>();
+			if (dev && dev->GetMac()->GetAddress() == receiverAddr) {
+				receiverNodeId = wifiStaNode.Get(i)->GetId();
+				break;
+			}
+		}
+	}
 
 	// Store packet data
-    uint64_t uid = packet->GetUid();
-    if (packetStatistics.find(uid) == packetStatistics.end()) {
+    uint64_t packetUid = packet->GetUid();
+    if (packetStatistics.find(packetUid) == packetStatistics.end()) {
         // First time seeing this packet
-        packetStatistics[uid] = {
+        packetStatistics[packetUid] = {
             .totalSent = 1,
             .totalReceived = 0,
             .totalDropped = 0,
@@ -952,12 +974,12 @@ void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet,
         };
     } else {
         // Update existing packet stats
-        packetStatistics[uid].totalReceived++;
-        packetStatistics[uid].totalRetries += static_cast<uint32_t>(txVector.GetRetries());
+        packetStatistics[packetUid].totalReceived++;
+        packetStatistics[packetUid].totalRetries += static_cast<uint32_t>(txVector.GetRetries());
     }
 
 	// Calculate latency
-    ns3::Time latency = Simulator::Now() - packetStatistics[uid].firstSeen;
+    ns3::Time latency = Simulator::Now() - packetStatistics[packetUid].firstSeen;
 
 	// Cast potentially problematic values to int to avoid null bytes
     int retries = static_cast<int>(txVector.GetRetries());
@@ -974,6 +996,7 @@ void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet,
 	}
     logFile << Simulator::Now() << ";"
 	        << context << ";"
+			<< packetUid << ";"
 			<< channelFreqMhz << ";"
 			<< channelNumber << ";"
 			<< rate << ";"
@@ -989,11 +1012,11 @@ void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet,
 			<< txPowerLevel << ";"
 			<< noiseDbm << ";"
             << signalDbm << ";"
-			<< packetStatistics[uid].totalSent << ";"
-			<< packetStatistics[uid].totalReceived << ";"
-			<< packetStatistics[uid].totalDropped << ";"
-			<< packetStatistics[uid].totalRetries << ";"
-			<< packetStatistics[uid].firstSeen << ";"
+			<< packetStatistics[packetUid].totalSent << ";"
+			<< packetStatistics[packetUid].totalReceived << ";"
+			<< packetStatistics[packetUid].totalDropped << ";"
+			<< packetStatistics[packetUid].totalRetries << ";"
+			<< packetStatistics[packetUid].firstSeen << ";"
 			<< latency << std::endl;
     logFile.close();
 }
