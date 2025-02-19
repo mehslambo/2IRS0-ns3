@@ -10,3 +10,5 @@ waf-tools/
 utils.pyc
 
 wutils.pyc
+
+.vscode/

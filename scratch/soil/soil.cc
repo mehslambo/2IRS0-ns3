@@ -29,6 +29,8 @@
 #include "ns3/WUSN-loss-model.h"
 #include "ns3/propagation-delay-model.h"
 #include "ns3/yans-wifi-helper.h"
+#include <cstring>
+#include <string.h>
 
 NS_LOG_COMPONENT_DEFINE("soil");
 
@@ -351,6 +353,49 @@ void updateNodesQueueLength() {
 }
 
 static bool startedSending=false;
+
+void CourseChangeCallback(std::string context, Ptr<const MobilityModel> mobility){
+	//Print that we are logging the positions
+	std::cout << "Logging node positions" << std::endl;
+	std::string filePath = "postprocessing/logs/soil/course_change.csv";
+	ofstream logFile(filePath,fstream::out | fstream::app);
+	if(!logFile.is_open()){
+		std::cout<<"Error opening file for logging node positions: "<<strerror(errno)<<std::endl;
+		return;
+	}
+
+    Vector position = mobility->GetPosition ();
+      
+	// Identify if this node is a station or AP by checking its WifiNetDevice type.
+	Ptr<Node> node = mobility->GetObject<Node>();
+	bool isAp = false;
+
+	// Look through all devices on the node:
+	for (uint32_t i = 0; i < node->GetNDevices(); ++i) {
+	  Ptr<WifiNetDevice> wifiDev = node->GetDevice(i)->GetObject<WifiNetDevice>();
+	  if (wifiDev) {
+		// If its Mac is "ApWifiMac," it's an AP; otherwise it's a station.
+		Ptr<ApWifiMac> apMac = wifiDev->GetMac()->GetObject<ApWifiMac>();
+		if (apMac) {
+		  isAp = true;
+		  break;
+		}
+	  }
+	}
+
+	std::string nodeType = isAp ? "AP" : "STA";
+
+	logFile
+	  << Simulator::Now().GetNanoSeconds() << ";"
+	  << context << ";"
+	  << nodeType << ";"
+	  << node->GetId() << ";"
+	  << position.x << ";"
+	  << position.y << ";"
+	  << position.z << std::endl;
+	// append to file
+	logFile.close();
+}
 
 void AssocTimeoutStartSending()
 {
@@ -947,6 +992,12 @@ int main(int argc, char *argv[]) {
 	mobilityAp.SetMobilityModel("ns3::ConstantPositionMobilityModel");
 	mobilityAp.Install(wifiApNode);
 
+    // Install the logger for the node positions whenever they change
+	Config::Connect(
+		"/NodeList/*/$ns3::MobilityModel/CourseChange",
+		MakeCallback(&CourseChangeCallback)
+	);
+
 	// Make it so that nodes are at a certain height > 0
 	// RV: the nodes are assigned to certain RAW groups and slots.
 	//     the location of nodes might affect that assignment.
@@ -966,6 +1017,8 @@ int main(int argc, char *argv[]) {
       mobility->SetPosition (position);
       
       counter++;
+
+	  // Log to 
     }
 
 
@@ -1115,11 +1168,11 @@ int main(int argc, char *argv[]) {
 			MakeCallback(&OnAPPacketToTransmitReceived));
 
 
+	// Force a position update to log the positions at T=0		
 	Ptr<MobilityModel> mobility1 =
 			wifiApNode.Get(0)->GetObject<MobilityModel>();
-	// Vector apposition = mobility1->GetPosition();
-	// uint32_t i = 0;
-
+    Vector apposition = mobility1->GetPosition();
+    mobility1->SetPosition(apposition);
 
 
 	sendStatistics(false);
@@ -1129,7 +1182,10 @@ int main(int argc, char *argv[]) {
 	// ******************
 	//  SIMULATION
 	// ******************
-        Simulator::Schedule(Seconds(timeOut), &AssocTimeoutStartSending);
+    Simulator::Schedule(Seconds(timeOut), &AssocTimeoutStartSending);
+
+    
+
 	Simulator::Stop(stopTime); // allow up to a minute after the client & server apps are finished to process the queue
 	Simulator::Run();
 
