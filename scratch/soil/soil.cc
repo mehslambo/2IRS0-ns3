@@ -29,6 +29,8 @@
 #include "ns3/WUSN-loss-model.h"
 #include "ns3/propagation-delay-model.h"
 #include "ns3/yans-wifi-helper.h"
+#include "ns3/wifi-phy.h"
+#include "ns3/wifi-mac-header.h"
 #include <cstring>
 #include <string.h>
 
@@ -910,6 +912,62 @@ void PhyStateTrace(std::string context, Time start, Time duration,
 	}
 }
 
+void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet, 
+	uint16_t channelFreqMhz, uint16_t channelNumber, 
+	uint32_t rate, bool isShortPreamble, 
+	WifiTxVector txVector,
+	double signalDbm, double noiseDbm)
+{
+	//std::cout << "Logging packet receptions" << std::endl;
+    // Extract node IDs from context
+    std::string::size_type pos = context.find("/NodeList/");
+    std::string nodeStr = context.substr(pos);
+    uint32_t senderNodeId;
+    sscanf(nodeStr.c_str(), "/NodeList/%u/", &senderNodeId);
+
+    // Get the receiving node
+    Ptr<Node> receiverNode = NodeList::GetNode(senderNodeId);
+    uint32_t receiverNodeId = receiverNode->GetId();
+
+    // Create a copy of the packet to read headers
+    Ptr<Packet> copy = packet->Copy();
+    WifiMacHeader wifiHeader;
+    copy->RemoveHeader(wifiHeader);
+    Mac48Address senderAddr = wifiHeader.GetAddr2();
+
+	// Cast potentially problematic values to int to avoid null bytes
+    int retries = static_cast<int>(txVector.GetRetries());
+    int ness = static_cast<int>(txVector.GetNess());
+    int nss = static_cast<int>(txVector.GetNss());
+    int txPowerLevel = static_cast<int>(txVector.GetTxPowerLevel());
+
+    // Log to file
+    std::string filePath = "postprocessing/logs/soil/monitor_sniffer_rx.csv";
+    std::ofstream logFile(filePath, std::ios::app);
+	if(!logFile.is_open()){
+		std::cout<<"Error opening file for logging node positions: "<<strerror(errno)<<std::endl;
+		return;
+	}
+    logFile << Simulator::Now().GetSeconds() << ";"
+	        << context << ";"
+			<< channelFreqMhz << ";"
+			<< channelNumber << ";"
+			<< rate << ";"
+			<< (isShortPreamble ? "true" : "false") << ";"
+            << senderNodeId << ";"
+            << receiverNodeId << ";"
+			<< txVector.GetMode().GetUniqueName() << ";"
+			<< retries << ";"
+			<< ness << ";"
+			<< nss << ";"
+			<< (txVector.IsShortGuardInterval() ? "true" : "false") << ";"
+			<< (txVector.IsStbc() ? "true" : "false") << ";"
+			<< txPowerLevel << ";"
+			<< noiseDbm << ";"
+            << signalDbm << std::endl;
+    logFile.close();
+}
+
 int main(int argc, char *argv[]) {
 	//LogComponentEnable("TCPSensorServer", LOG_ALL);
 	//LogComponentEnable("TCPSensorClient", LOG_ALL);
@@ -976,7 +1034,6 @@ int main(int argc, char *argv[]) {
 
 	wifiStaNode.Create(totalNodes);
 	wifiApNode.Create(gateways * gateways);
-
 
 
 	// **********************
@@ -1112,7 +1169,9 @@ int main(int argc, char *argv[]) {
 	Config::ConnectWithoutContext(oss.str() + "RawGroup", MakeCallback(&RawGroupTrace));
 	Config::ConnectWithoutContext(oss.str() + "RawSlot", MakeCallback(&RawSlotTrace));
 
-
+    // Install the logger for transmission power
+	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/MonitorSnifferRx",
+		MakeCallback(&MonitorSnifferRxCallback));
 
 
 
