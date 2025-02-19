@@ -12,3 +12,5 @@ utils.pyc
 wutils.pyc
 
 .vscode/
+
+postprocessing/.ipynb_checkpoints/
