@@ -33,6 +33,7 @@
 #include "ns3/wifi-mac-header.h"
 #include <cstring>
 #include <string.h>
+#include <cerrno>
 
 NS_LOG_COMPONENT_DEFINE("soil");
 
@@ -388,7 +389,7 @@ void CourseChangeCallback(std::string context, Ptr<const MobilityModel> mobility
 	std::string nodeType = isAp ? "AP" : "STA";
 
 	logFile
-	  << Simulator::Now().GetNanoSeconds() << ";"
+	  << Simulator::Now() << ";"
 	  << context << ";"
 	  << nodeType << ";"
 	  << node->GetId() << ";"
@@ -912,6 +913,15 @@ void PhyStateTrace(std::string context, Time start, Time duration,
 	}
 }
 
+struct PacketStats {
+    uint32_t totalSent;
+    uint32_t totalReceived;
+    uint32_t totalDropped;
+    uint32_t totalRetries;
+    Time firstSeen;
+};
+std::map<uint64_t, PacketStats> packetStatistics;
+
 void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet, 
 	uint16_t channelFreqMhz, uint16_t channelNumber, 
 	uint32_t rate, bool isShortPreamble, 
@@ -929,11 +939,25 @@ void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet,
     Ptr<Node> receiverNode = NodeList::GetNode(senderNodeId);
     uint32_t receiverNodeId = receiverNode->GetId();
 
-    // Create a copy of the packet to read headers
-    Ptr<Packet> copy = packet->Copy();
-    WifiMacHeader wifiHeader;
-    copy->RemoveHeader(wifiHeader);
-    Mac48Address senderAddr = wifiHeader.GetAddr2();
+	// Store packet data
+    uint64_t uid = packet->GetUid();
+    if (packetStatistics.find(uid) == packetStatistics.end()) {
+        // First time seeing this packet
+        packetStatistics[uid] = {
+            .totalSent = 1,
+            .totalReceived = 0,
+            .totalDropped = 0,
+            .totalRetries = static_cast<uint32_t>(txVector.GetRetries()),
+            .firstSeen = Simulator::Now()
+        };
+    } else {
+        // Update existing packet stats
+        packetStatistics[uid].totalReceived++;
+        packetStatistics[uid].totalRetries += static_cast<uint32_t>(txVector.GetRetries());
+    }
+
+	// Calculate latency
+    ns3::Time latency = Simulator::Now() - packetStatistics[uid].firstSeen;
 
 	// Cast potentially problematic values to int to avoid null bytes
     int retries = static_cast<int>(txVector.GetRetries());
@@ -948,7 +972,7 @@ void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet,
 		std::cout<<"Error opening file for logging node positions: "<<strerror(errno)<<std::endl;
 		return;
 	}
-    logFile << Simulator::Now().GetSeconds() << ";"
+    logFile << Simulator::Now() << ";"
 	        << context << ";"
 			<< channelFreqMhz << ";"
 			<< channelNumber << ";"
@@ -964,7 +988,13 @@ void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet,
 			<< (txVector.IsStbc() ? "true" : "false") << ";"
 			<< txPowerLevel << ";"
 			<< noiseDbm << ";"
-            << signalDbm << std::endl;
+            << signalDbm << ";"
+			<< packetStatistics[uid].totalSent << ";"
+			<< packetStatistics[uid].totalReceived << ";"
+			<< packetStatistics[uid].totalDropped << ";"
+			<< packetStatistics[uid].totalRetries << ";"
+			<< packetStatistics[uid].firstSeen << ";"
+			<< latency << std::endl;
     logFile.close();
 }
 
