@@ -367,8 +367,8 @@ void CourseChangeCallback(std::string context, Ptr<const MobilityModel> mobility
 		return;
 	}
 
-    Vector position = mobility->GetPosition ();
-      
+	Vector position = mobility->GetPosition ();
+	  
 	// Identify if this node is a station or AP by checking its WifiNetDevice type.
 	Ptr<Node> node = mobility->GetObject<Node>();
 	bool isAp = false;
@@ -390,7 +390,6 @@ void CourseChangeCallback(std::string context, Ptr<const MobilityModel> mobility
 
 	logFile
 	  << Simulator::Now() << ";"
-	  << context << ";"
 	  << nodeType << ";"
 	  << node->GetId() << ";"
 	  << position.x << ";"
@@ -942,22 +941,49 @@ void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet,
     WifiMacHeader header;
     packet->PeekHeader(header);
     
-    // Get source and destination MAC addresses
-    Mac48Address srcAddr = header.GetAddr2(); // Source address
-    Mac48Address dstAddr = header.GetAddr1(); // Destination address
-
-    // Initialize sender and receiver node IDs
-    uint32_t senderNodeId = GetNodeIdFromMacAddress(srcAddr);
-    uint32_t receiverNodeId = GetNodeIdFromMacAddress(dstAddr);
+	// Get MAC addresses based on ToDS and FromDS bits
+	bool toDS = header.IsToDs();
+	bool fromDS = header.IsFromDs();
+	
+	Mac48Address receiverMac = header.GetAddr1(); // Always the receiver
+	Mac48Address transmitterMac = header.GetAddr2(); // Always the transmitter
+	Mac48Address destinationMac;
+	Mac48Address sourceMac;
+	Mac48Address bssid;
+	
+	if (!toDS && !fromDS) {
+		// Ad-hoc: addr3 is BSSID
+		destinationMac = header.GetAddr1();
+		sourceMac = header.GetAddr2(); 
+		bssid = header.GetAddr3();
+	}
+	else if (!toDS && fromDS) {
+		// From AP to STA
+		destinationMac = header.GetAddr1();
+		bssid = header.GetAddr2();
+		sourceMac = header.GetAddr3();
+	}
+	else if (toDS && !fromDS) {
+		// From STA to AP
+		bssid = header.GetAddr1();
+		sourceMac = header.GetAddr2();
+		destinationMac = header.GetAddr3();
+	}
+	else {
+		// WDS: addr4 exists
+		bssid = Mac48Address(); // No BSSID
+		destinationMac = header.GetAddr3();
+		sourceMac = header.GetAddr4();
+	}
 
 	// Get interceptor node ID from context
 	std::string::size_type pos = context.find("/NodeList/");
     std::string nodeStr = context.substr(pos);
-    uint32_t interceptorNodeId;
-    sscanf(nodeStr.c_str(), "/NodeList/%u/", &interceptorNodeId);
+    uint32_t rxSnifferNodeId;
+    sscanf(nodeStr.c_str(), "/NodeList/%u/", &rxSnifferNodeId);
 
 	// If interceptor != intended recipient, skip logging
-	if (interceptorNodeId != receiverNodeId) 
+	if (rxSnifferNodeId != GetNodeIdFromMacAddress(destinationMac)) 
 	    return;
 
     // Cast values to int to avoid null bytes
@@ -976,15 +1002,24 @@ void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet,
 
     // Write CSV line with all packet information
     logFile << Simulator::Now() << ";"
-            << packet->GetUid() << ";"
+            << packet->GetUid() << ";" 
+			<< packet->GetSize() << ";"
             << channelFreqMhz << ";"
             << channelNumber << ";"
             << rate << ";"
             << (isShortPreamble ? "true" : "false") << ";"
-            << interceptorNodeId << ";"
-            << senderNodeId << ";"
-            << receiverNodeId << ";"
-            << txVector.GetMode().GetUniqueName() << ";"
+            << rxSnifferNodeId << ";"
+			<< receiverMac << ";"
+			<< GetNodeIdFromMacAddress(receiverMac) << ";"
+			<< transmitterMac << ";"
+			<< GetNodeIdFromMacAddress(transmitterMac) << ";"
+			<< bssid << ";"
+			<< GetNodeIdFromMacAddress(bssid) << ";"
+			<< destinationMac << ";"
+			<< GetNodeIdFromMacAddress(destinationMac) << ";"
+			<< sourceMac << ";"
+			<< GetNodeIdFromMacAddress(sourceMac) << ";"
+			<< txVector.GetMode().GetUniqueName() << ";"
             << retries << ";"
             << ness << ";"
             << nss << ";"
@@ -1006,19 +1041,46 @@ void MonitorSnifferTxCallback(std::string context, Ptr<const Packet> packet,
     WifiMacHeader header;
     packet->PeekHeader(header);
     
-    // Get source and destination MAC addresses
-    Mac48Address srcAddr = header.GetAddr2(); // Source address
-    Mac48Address dstAddr = header.GetAddr1(); // Destination address
+   // Get MAC addresses based on ToDS and FromDS bits
+	bool toDS = header.IsToDs();
+	bool fromDS = header.IsFromDs();
+	
+	Mac48Address receiverMac = header.GetAddr1(); // Always the receiver
+	Mac48Address transmitterMac = header.GetAddr2(); // Always the transmitter
+	Mac48Address destinationMac;
+	Mac48Address sourceMac;
+	Mac48Address bssid;
+	
+	if (!toDS && !fromDS) {
+		// Ad-hoc: addr3 is BSSID
+		destinationMac = header.GetAddr1();
+		sourceMac = header.GetAddr2(); 
+		bssid = header.GetAddr3();
+	}
+	else if (!toDS && fromDS) {
+		// From AP to STA
+		destinationMac = header.GetAddr1();
+		bssid = header.GetAddr2();
+		sourceMac = header.GetAddr3();
+	}
+	else if (toDS && !fromDS) {
+		// From STA to AP
+		bssid = header.GetAddr1();
+		sourceMac = header.GetAddr2();
+		destinationMac = header.GetAddr3();
+	}
+	else {
+		// WDS: addr4 exists
+		bssid = Mac48Address(); // No BSSID
+		destinationMac = header.GetAddr3();
+		sourceMac = header.GetAddr4();
+	}
 
-    // Get sender and receiver node IDs
-    uint32_t senderNodeId = GetNodeIdFromMacAddress(srcAddr);
-    uint32_t receiverNodeId = GetNodeIdFromMacAddress(dstAddr);
-
-    // Get transmitter node ID from context
+    // Get transmission sniffer node ID from context
     std::string::size_type pos = context.find("/NodeList/");
     std::string nodeStr = context.substr(pos);
-    uint32_t transmitterNodeId;
-    sscanf(nodeStr.c_str(), "/NodeList/%u/", &transmitterNodeId);
+    uint32_t txSnifferNodeId;
+    sscanf(nodeStr.c_str(), "/NodeList/%u/", &txSnifferNodeId);
 
     // Cast values to int to avoid null bytes
     int retries = static_cast<int>(txVector.GetRetries());
@@ -1037,13 +1099,22 @@ void MonitorSnifferTxCallback(std::string context, Ptr<const Packet> packet,
     // Write CSV line with all packet information
     logFile << Simulator::Now() << ";"
             << packet->GetUid() << ";"
-            << channelFreqMhz << ";"
+			<< packet->GetSize() << ";"
+			<< channelFreqMhz << ";"
             << channelNumber << ";"
             << rate << ";"
             << (isShortPreamble ? "true" : "false") << ";"
-            << transmitterNodeId << ";"
-            << senderNodeId << ";"
-            << receiverNodeId << ";"
+            << txSnifferNodeId << ";"
+			<< receiverMac << ";"
+			<< GetNodeIdFromMacAddress(receiverMac) << ";"
+			<< transmitterMac << ";"
+			<< GetNodeIdFromMacAddress(transmitterMac) << ";"
+			<< bssid << ";"
+			<< GetNodeIdFromMacAddress(bssid) << ";"
+			<< destinationMac << ";"
+			<< GetNodeIdFromMacAddress(destinationMac) << ";"
+			<< sourceMac << ";"
+			<< GetNodeIdFromMacAddress(sourceMac) << ";"
             << txVector.GetMode().GetUniqueName() << ";"
             << retries << ";"
             << ness << ";"
