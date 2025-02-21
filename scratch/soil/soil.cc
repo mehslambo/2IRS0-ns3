@@ -913,75 +913,54 @@ void PhyStateTrace(std::string context, Time start, Time duration,
 	}
 }
 
-struct PacketStats {
-    uint32_t totalSent;
-    uint32_t totalReceived;
-    uint32_t totalDropped;
-    uint32_t totalRetries;
-    Time firstSeen;
-};
-std::map<uint64_t, PacketStats> packetStatistics;
+uint32_t GetNodeIdFromMacAddress(const Mac48Address& addr) {
+    // Check station nodes
+    for (uint32_t i = 0; i < wifiStaNode.GetN(); i++) {
+        Ptr<WifiNetDevice> dev = wifiStaNode.Get(i)->GetDevice(0)->GetObject<WifiNetDevice>();
+        if (dev && dev->GetMac()->GetAddress() == addr) {
+            return wifiStaNode.Get(i)->GetId();
+        }
+    }
+    
+    for (uint32_t i = 0; i < wifiApNode.GetN(); i++) {
+        Ptr<WifiNetDevice> dev = wifiApNode.Get(i)->GetDevice(0)->GetObject<WifiNetDevice>();
+        if (dev && dev->GetMac()->GetAddress() == addr) {
+            return wifiApNode.Get(i)->GetId();
+        }
+    }
+    
+    return -1; // Return -1 if not found
+}
 
 void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet, 
-	uint16_t channelFreqMhz, uint16_t channelNumber, 
-	uint32_t rate, bool isShortPreamble, 
-	WifiTxVector txVector,
-	double signalDbm, double noiseDbm)
+    uint16_t channelFreqMhz, uint16_t channelNumber, 
+    uint32_t rate, bool isShortPreamble, 
+    WifiTxVector txVector,
+    double signalDbm, double noiseDbm)
 {
-	//std::cout << "Logging packet receptions" << std::endl;
-    // Extract node IDs from context
-    std::string::size_type pos = context.find("/NodeList/");
+    // Extract MAC header for source/destination info
+    WifiMacHeader header;
+    packet->PeekHeader(header);
+    
+    // Get source and destination MAC addresses
+    Mac48Address srcAddr = header.GetAddr2(); // Source address
+    Mac48Address dstAddr = header.GetAddr1(); // Destination address
+
+    // Initialize sender and receiver node IDs
+    uint32_t senderNodeId = GetNodeIdFromMacAddress(srcAddr);
+    uint32_t receiverNodeId = GetNodeIdFromMacAddress(dstAddr);
+
+	// Get interceptor node ID from context
+	std::string::size_type pos = context.find("/NodeList/");
     std::string nodeStr = context.substr(pos);
-    uint32_t senderNodeId;
-    sscanf(nodeStr.c_str(), "/NodeList/%u/", &senderNodeId);
+    uint32_t interceptorNodeId;
+    sscanf(nodeStr.c_str(), "/NodeList/%u/", &interceptorNodeId);
 
-	// Extract receiver node ID
-	uint32_t receiverNodeId = 0;
-	for (uint32_t i = 0; i < wifiStaNode.GetN(); i++) {
-		if (wifiStaNode.Get(i)->GetId() == senderNodeId) {
-			// If sender is a station, receiver is the AP
-			receiverNodeId = wifiApNode.Get(0)->GetId();
-			break;
-		}
-	}
-	if (receiverNodeId == 0) {
-		// If sender was the AP, need to determine which station was the receiver
-		// We can extract this from the packet headers
-		WifiMacHeader header;
-		packet->PeekHeader(header);
-		Mac48Address receiverAddr = header.GetAddr1();
-		
-		// Find the station with this MAC address
-		for (uint32_t i = 0; i < wifiStaNode.GetN(); i++) {
-			Ptr<WifiNetDevice> dev = wifiStaNode.Get(i)->GetDevice(0)->GetObject<WifiNetDevice>();
-			if (dev && dev->GetMac()->GetAddress() == receiverAddr) {
-				receiverNodeId = wifiStaNode.Get(i)->GetId();
-				break;
-			}
-		}
-	}
+	// If interceptor != intended recipient, skip logging
+	if (interceptorNodeId != receiverNodeId) 
+	    return;
 
-	// Store packet data
-    uint64_t packetUid = packet->GetUid();
-    if (packetStatistics.find(packetUid) == packetStatistics.end()) {
-        // First time seeing this packet
-        packetStatistics[packetUid] = {
-            .totalSent = 1,
-            .totalReceived = 0,
-            .totalDropped = 0,
-            .totalRetries = static_cast<uint32_t>(txVector.GetRetries()),
-            .firstSeen = Simulator::Now()
-        };
-    } else {
-        // Update existing packet stats
-        packetStatistics[packetUid].totalReceived++;
-        packetStatistics[packetUid].totalRetries += static_cast<uint32_t>(txVector.GetRetries());
-    }
-
-	// Calculate latency
-    ns3::Time latency = Simulator::Now() - packetStatistics[packetUid].firstSeen;
-
-	// Cast potentially problematic values to int to avoid null bytes
+    // Cast values to int to avoid null bytes
     int retries = static_cast<int>(txVector.GetRetries());
     int ness = static_cast<int>(txVector.GetNess());
     int nss = static_cast<int>(txVector.GetNss());
@@ -990,34 +969,89 @@ void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet,
     // Log to file
     std::string filePath = "postprocessing/logs/soil/monitor_sniffer_rx.csv";
     std::ofstream logFile(filePath, std::ios::app);
-	if(!logFile.is_open()){
-		std::cout<<"Error opening file for logging node positions: "<<strerror(errno)<<std::endl;
-		return;
-	}
+    if(!logFile.is_open()) {
+        std::cout << "Error opening file for logging packet data: " << strerror(errno) << std::endl;
+        return;
+    }
+
+    // Write CSV line with all packet information
     logFile << Simulator::Now() << ";"
-	        << context << ";"
-			<< packetUid << ";"
-			<< channelFreqMhz << ";"
-			<< channelNumber << ";"
-			<< rate << ";"
-			<< (isShortPreamble ? "true" : "false") << ";"
+            << packet->GetUid() << ";"
+            << channelFreqMhz << ";"
+            << channelNumber << ";"
+            << rate << ";"
+            << (isShortPreamble ? "true" : "false") << ";"
+            << interceptorNodeId << ";"
             << senderNodeId << ";"
             << receiverNodeId << ";"
-			<< txVector.GetMode().GetUniqueName() << ";"
-			<< retries << ";"
-			<< ness << ";"
-			<< nss << ";"
-			<< (txVector.IsShortGuardInterval() ? "true" : "false") << ";"
-			<< (txVector.IsStbc() ? "true" : "false") << ";"
-			<< txPowerLevel << ";"
-			<< noiseDbm << ";"
+            << txVector.GetMode().GetUniqueName() << ";"
+            << retries << ";"
+            << ness << ";"
+            << nss << ";"
+            << (txVector.IsShortGuardInterval() ? "true" : "false") << ";"
+            << (txVector.IsStbc() ? "true" : "false") << ";"
+            << txPowerLevel << ";"
+            << noiseDbm << ";"
             << signalDbm << ";"
-			<< packetStatistics[packetUid].totalSent << ";"
-			<< packetStatistics[packetUid].totalReceived << ";"
-			<< packetStatistics[packetUid].totalDropped << ";"
-			<< packetStatistics[packetUid].totalRetries << ";"
-			<< packetStatistics[packetUid].firstSeen << ";"
-			<< latency << std::endl;
+            << (header.IsRetry() ? "true" : "false") << std::endl;
+    logFile.close();
+}
+
+void MonitorSnifferTxCallback(std::string context, Ptr<const Packet> packet, 
+    uint16_t channelFreqMhz, uint16_t channelNumber,
+    uint32_t rate, bool isShortPreamble,
+    WifiTxVector txVector)
+{
+    // Extract MAC header for source/destination info
+    WifiMacHeader header;
+    packet->PeekHeader(header);
+    
+    // Get source and destination MAC addresses
+    Mac48Address srcAddr = header.GetAddr2(); // Source address
+    Mac48Address dstAddr = header.GetAddr1(); // Destination address
+
+    // Get sender and receiver node IDs
+    uint32_t senderNodeId = GetNodeIdFromMacAddress(srcAddr);
+    uint32_t receiverNodeId = GetNodeIdFromMacAddress(dstAddr);
+
+    // Get transmitter node ID from context
+    std::string::size_type pos = context.find("/NodeList/");
+    std::string nodeStr = context.substr(pos);
+    uint32_t transmitterNodeId;
+    sscanf(nodeStr.c_str(), "/NodeList/%u/", &transmitterNodeId);
+
+    // Cast values to int to avoid null bytes
+    int retries = static_cast<int>(txVector.GetRetries());
+    int ness = static_cast<int>(txVector.GetNess());
+    int nss = static_cast<int>(txVector.GetNss());
+    int txPowerLevel = static_cast<int>(txVector.GetTxPowerLevel());
+
+    // Log to file
+    std::string filePath = "postprocessing/logs/soil/monitor_sniffer_tx.csv";
+    std::ofstream logFile(filePath, std::ios::app);
+    if(!logFile.is_open()) {
+        std::cout << "Error opening file for logging packet data: " << strerror(errno) << std::endl;
+        return;
+    }
+
+    // Write CSV line with all packet information
+    logFile << Simulator::Now() << ";"
+            << packet->GetUid() << ";"
+            << channelFreqMhz << ";"
+            << channelNumber << ";"
+            << rate << ";"
+            << (isShortPreamble ? "true" : "false") << ";"
+            << transmitterNodeId << ";"
+            << senderNodeId << ";"
+            << receiverNodeId << ";"
+            << txVector.GetMode().GetUniqueName() << ";"
+            << retries << ";"
+            << ness << ";"
+            << nss << ";"
+            << (txVector.IsShortGuardInterval() ? "true" : "false") << ";"
+            << (txVector.IsStbc() ? "true" : "false") << ";"
+            << txPowerLevel << ";"
+            << (header.IsRetry() ? "true" : "false") << std::endl;
     logFile.close();
 }
 
@@ -1222,7 +1256,9 @@ int main(int argc, char *argv[]) {
 	Config::ConnectWithoutContext(oss.str() + "RawGroup", MakeCallback(&RawGroupTrace));
 	Config::ConnectWithoutContext(oss.str() + "RawSlot", MakeCallback(&RawSlotTrace));
 
-    // Install the logger for transmission power
+    // Install the package sniffers
+	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/MonitorSnifferTx",
+		MakeCallback(&MonitorSnifferTxCallback));
 	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/MonitorSnifferRx",
 		MakeCallback(&MonitorSnifferRxCallback));
 
