@@ -26,8 +26,10 @@
 
 
 #include "s1g-test-tim-raw.h"
-#include "ns3/WUSN-loss-model.h"
-#include "ns3/propagation-delay-model.h"
+#include "models/underwater-propagation-loss-model.h"
+#include "models/underwater-propagation-loss-model.cc"
+#include "models/underwater-propagation-delay-model.h"
+#include "models/underwater-propagation-delay-model.cc"
 #include "ns3/yans-wifi-helper.h"
 #include "ns3/wifi-phy.h"
 #include "ns3/wifi-mac-header.h"
@@ -39,7 +41,7 @@
 #include <string.h>
 #include <cerrno>
 
-NS_LOG_COMPONENT_DEFINE("soil");
+NS_LOG_COMPONENT_DEFINE("lake");
 
 uint32_t AssocNum = 0;
 int64_t AssocTime = 0;
@@ -57,14 +59,14 @@ Statistics stats;
 Time stopTime = Hours(2);
 
 uint32_t gateways = 1;
-uint32_t totalNodes = 200;
-uint32_t perAxis = 15;
+uint32_t totalNodes = 50;
+uint32_t perAxis = 10;
 
 uint32_t packetSize = 1;
 int32_t totalSize = 1;
 
-double areaSize = 12.0;
-double depth = 0.3;
+double areaSize = 1;
+double depth = 0.1;
 
 uint32_t simTime = 3600;
 uint32_t timeOut = 10;
@@ -892,7 +894,7 @@ int main(int argc, char *argv[]) {
 	cmd.AddValue("totalSize", "Total bytes to be send", totalSize);
 	// cmd.AddValue("areaSize", "Length of side of the area", areaSize);
 	cmd.AddValue("areaSize", "Length of the side of the area", areaSize);
-	cmd.AddValue("depth", "Depth below ground",depth);
+	cmd.AddValue("depth", "Depth underwater",depth);
         cmd.AddValue("stopTime", "Simulation time in seconds", simTime);
         cmd.AddValue("timeOut", "Association timeout in seconds", timeOut);
 	// cmd.Parse(argc, argv);
@@ -960,7 +962,7 @@ int main(int argc, char *argv[]) {
 	mobilityAp.Install(wifiApNode);
 
     // Add position logging
-    PositionLogging posLogger("soil");
+    PositionLogging posLogger("lake");
     posLogger.EnableLogging();
 
 	// Make it so that nodes are at a certain height > 0
@@ -993,7 +995,7 @@ int main(int argc, char *argv[]) {
     //double dist = 5049 / perAxis;
     //double x = dist * (i % perAxis);
     //double y = dist * int(i / perAxis);
-    wifiApNode.Get(i)->GetObject<MobilityModel>()->SetPosition(Vector(areaSize/2.0,areaSize/2.0,2.0));
+    wifiApNode.Get(i)->GetObject<MobilityModel>()->SetPosition(Vector(areaSize/2.0,areaSize/2.0,0));
   }
 
 
@@ -1001,10 +1003,17 @@ int main(int argc, char *argv[]) {
 	// CHANNEL 
 	// ************
 
-	Ptr<WUSNLossModel> loss = CreateObject<WUSNLossModel>();
-  	loss->frequency = 868000000;
+	Ptr<UnderwaterPropagationLossModel> loss = CreateObject<UnderwaterPropagationLossModel>();
+	loss->SetAttribute("Frequency", DoubleValue(904000000));  // HaLow frequency based on what's seen in PHY logging
+	loss->SetAttribute("Temperature", DoubleValue(15));  // Temp of lakes ranges [10, 20]
+	loss->SetAttribute("Salinity", DoubleValue(.1));  // Assuming freshwater
+	loss->SetAttribute("RelativePermittivity", DoubleValue(80));  // Epsillon r, look up in table?
 
-  	Ptr<PropagationDelayModel> delay = CreateObject<ConstantSpeedPropagationDelayModel> ();
+  	Ptr<UnderwaterPropagationDelayModel> delay = CreateObject<UnderwaterPropagationDelayModel> ();
+	delay->SetAttribute("Frequency", DoubleValue(904000000));  // HaLow frequency based on what's seen in PHY logging
+	delay->SetAttribute("Temperature", DoubleValue(15));  // Temp of lakes ranges [10, 20]
+	delay->SetAttribute("Salinity", DoubleValue(.1));  // Assuming freshwater
+	delay->SetAttribute("RelativePermittivity", DoubleValue(80));  // Epsillon r, look up in table?
 
   	Ptr<YansWifiChannel> channel = CreateObject<YansWifiChannel> ();
 	  channel->SetPropagationLossModel(loss);
@@ -1078,7 +1087,7 @@ int main(int argc, char *argv[]) {
 	Config::ConnectWithoutContext(oss.str() + "RawSlot", MakeCallback(&RawSlotTrace));
 
 	// Install the packet sniffers 
-	PacketLogging logger("soil", wifiStaNode, wifiApNode);
+	PacketLogging logger("lake", wifiStaNode, wifiApNode);
 	logger.EnableLogging();
 
 
