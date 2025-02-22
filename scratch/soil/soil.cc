@@ -31,6 +31,10 @@
 #include "ns3/yans-wifi-helper.h"
 #include "ns3/wifi-phy.h"
 #include "ns3/wifi-mac-header.h"
+#include "logging/packet-logging.h"
+#include "logging/packet-logging.cc"
+#include "logging/position-logging.h"
+#include "logging/position-logging.cc"
 #include <cstring>
 #include <string.h>
 #include <cerrno>
@@ -357,47 +361,7 @@ void updateNodesQueueLength() {
 
 static bool startedSending=false;
 
-void CourseChangeCallback(std::string context, Ptr<const MobilityModel> mobility){
-	//Print that we are logging the positions
-	std::cout << "Logging node positions" << std::endl;
-	std::string filePath = "postprocessing/logs/soil/CourseChange.csv";
-	ofstream logFile(filePath,fstream::out | fstream::app);
-	if(!logFile.is_open()){
-		std::cout<<"Error opening file for logging node positions: "<<strerror(errno)<<std::endl;
-		return;
-	}
 
-	Vector position = mobility->GetPosition ();
-	  
-	// Identify if this node is a station or AP by checking its WifiNetDevice type.
-	Ptr<Node> node = mobility->GetObject<Node>();
-	bool isAp = false;
-
-	// Look through all devices on the node:
-	for (uint32_t i = 0; i < node->GetNDevices(); ++i) {
-	  Ptr<WifiNetDevice> wifiDev = node->GetDevice(i)->GetObject<WifiNetDevice>();
-	  if (wifiDev) {
-		// If its Mac is "ApWifiMac," it's an AP; otherwise it's a station.
-		Ptr<ApWifiMac> apMac = wifiDev->GetMac()->GetObject<ApWifiMac>();
-		if (apMac) {
-		  isAp = true;
-		  break;
-		}
-	  }
-	}
-
-	std::string nodeType = isAp ? "AP" : "STA";
-
-	logFile
-	  << Simulator::Now() << ";"
-	  << nodeType << ";"
-	  << node->GetId() << ";"
-	  << position.x << ";"
-	  << position.y << ";"
-	  << position.z << std::endl;
-	// append to file
-	logFile.close();
-}
 
 void AssocTimeoutStartSending()
 {
@@ -912,239 +876,7 @@ void PhyStateTrace(std::string context, Time start, Time duration,
 	}
 }
 
-uint32_t GetNodeIdFromMacAddress(const Mac48Address& addr) {
-    // Check station nodes
-    for (uint32_t i = 0; i < wifiStaNode.GetN(); i++) {
-        Ptr<WifiNetDevice> dev = wifiStaNode.Get(i)->GetDevice(0)->GetObject<WifiNetDevice>();
-        if (dev && dev->GetMac()->GetAddress() == addr) {
-            return wifiStaNode.Get(i)->GetId();
-        }
-    }
-    
-    for (uint32_t i = 0; i < wifiApNode.GetN(); i++) {
-        Ptr<WifiNetDevice> dev = wifiApNode.Get(i)->GetDevice(0)->GetObject<WifiNetDevice>();
-        if (dev && dev->GetMac()->GetAddress() == addr) {
-            return wifiApNode.Get(i)->GetId();
-        }
-    }
-    
-    return -1; // Return -1 if not found
-}
 
-std::string PacketToCsv(Ptr<const Packet> packet){
-	// Extract MAC header for source/destination info
-	WifiMacHeader header;
-	packet->PeekHeader(header);
-	
-	// Get MAC addresses based on ToDS and FromDS bits
-	bool toDS = header.IsToDs();
-	bool fromDS = header.IsFromDs();
-	
-	Mac48Address receiverMac = header.GetAddr1(); // Always the receiver
-	Mac48Address transmitterMac = header.GetAddr2(); // Always the transmitter
-	Mac48Address destinationMac;
-	Mac48Address sourceMac;
-	Mac48Address bssid;
-	
-	if (!toDS && !fromDS) {
-		// Ad-hoc: addr3 is BSSID
-		destinationMac = header.GetAddr1();
-		sourceMac = header.GetAddr2(); 
-		bssid = header.GetAddr3();
-	}
-	else if (!toDS && fromDS) {
-		// From AP to STA
-		destinationMac = header.GetAddr1();
-		bssid = header.GetAddr2();
-		sourceMac = header.GetAddr3();
-	}
-	else if (toDS && !fromDS) {
-		// From STA to AP
-		bssid = header.GetAddr1();
-		sourceMac = header.GetAddr2();
-		destinationMac = header.GetAddr3();
-	}
-	else {
-		// WDS: addr4 exists
-		bssid = Mac48Address(); // No BSSID
-		destinationMac = header.GetAddr3();
-		sourceMac = header.GetAddr4();
-	}
-	
-	std::stringstream ss;
-
-	ss << packet->GetUid() << ";"
-	   << packet->GetSize() << ";" 
-	   << receiverMac << ";"
-	   << (GetNodeIdFromMacAddress(receiverMac) == ((uint32_t) -1) ? "?" : std::to_string(GetNodeIdFromMacAddress(receiverMac))) << ";"
-	   << transmitterMac << ";"
-	   << (GetNodeIdFromMacAddress(transmitterMac) == ((uint32_t) -1) ? "?" : std::to_string(GetNodeIdFromMacAddress(transmitterMac))) << ";"
-	   << bssid << ";"
-	   << (GetNodeIdFromMacAddress(bssid) == ((uint32_t) -1) ? "?" : std::to_string(GetNodeIdFromMacAddress(bssid))) << ";"
-	   << destinationMac << ";"
-	   << (GetNodeIdFromMacAddress(destinationMac) == ((uint32_t) -1) ? "?" : std::to_string(GetNodeIdFromMacAddress(destinationMac))) << ";"
-	   << sourceMac << ";"
-	   << (GetNodeIdFromMacAddress(sourceMac) == ((uint32_t) -1) ? "?" : std::to_string(GetNodeIdFromMacAddress(sourceMac)));
-
-	return ss.str();
-}
-
-
-
-void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet, 
-    uint16_t channelFreqMhz, uint16_t channelNumber, 
-    uint32_t rate, bool isShortPreamble, 
-    WifiTxVector txVector,
-    double signalDbm, double noiseDbm)
-{
-    // Extract MAC header for source/destination info
-    WifiMacHeader header;
-    packet->PeekHeader(header);
-
-	// Get interceptor node ID from context
-	std::string::size_type pos = context.find("/NodeList/");
-    std::string nodeStr = context.substr(pos);
-    uint32_t rxSnifferNodeId;
-    sscanf(nodeStr.c_str(), "/NodeList/%u/", &rxSnifferNodeId);
-
-	// If interceptor != intended recipient, skip logging
-	//if (rxSnifferNodeId != GetNodeIdFromMacAddress(destinationMac)) 
-	//    return;
-
-    // Cast values to int to avoid null bytes
-    int retries = static_cast<int>(txVector.GetRetries());
-    int ness = static_cast<int>(txVector.GetNess());
-    int nss = static_cast<int>(txVector.GetNss());
-    int txPowerLevel = static_cast<int>(txVector.GetTxPowerLevel());
-
-    // Log to file
-    std::string filePath = "postprocessing/logs/soil/MonitorSnifferRx.csv";
-    std::ofstream logFile(filePath, std::ios::app);
-    if(!logFile.is_open()) {
-        std::cout << "Error opening file for logging packet data: " << strerror(errno) << std::endl;
-        return;
-    }
-
-    // Write CSV line with all packet information
-    logFile << Simulator::Now() << ";"
-            << rxSnifferNodeId << ";"
-            << PacketToCsv(packet) << ";" 
-            << channelFreqMhz << ";"
-            << channelNumber << ";"
-            << rate << ";"
-            << (isShortPreamble ? "true" : "false") << ";"
-			<< txVector.GetMode().GetUniqueName() << ";"
-            << retries << ";"
-            << ness << ";"
-            << nss << ";"
-            << (txVector.IsShortGuardInterval() ? "true" : "false") << ";"
-            << (txVector.IsStbc() ? "true" : "false") << ";"
-            << txPowerLevel << ";"
-            << noiseDbm << ";"
-            << signalDbm << ";"
-            << (header.IsRetry() ? "true" : "false") << std::endl;
-    logFile.close();
-}
-
-void MonitorSnifferTxCallback(std::string context, Ptr<const Packet> packet, 
-    uint16_t channelFreqMhz, uint16_t channelNumber,
-    uint32_t rate, bool isShortPreamble,
-    WifiTxVector txVector)
-{
-    // Extract MAC header for source/destination info
-    WifiMacHeader header;
-    packet->PeekHeader(header);
-    
-   // Get MAC addresses based on ToDS and FromDS bits
-	bool toDS = header.IsToDs();
-	bool fromDS = header.IsFromDs();
-	
-	Mac48Address receiverMac = header.GetAddr1(); // Always the receiver
-	Mac48Address transmitterMac = header.GetAddr2(); // Always the transmitter
-	Mac48Address destinationMac;
-	Mac48Address sourceMac;
-	Mac48Address bssid;
-	
-	if (!toDS && !fromDS) {
-		// Ad-hoc: addr3 is BSSID
-		destinationMac = header.GetAddr1();
-		sourceMac = header.GetAddr2(); 
-		bssid = header.GetAddr3();
-	}
-	else if (!toDS && fromDS) {
-		// From AP to STA
-		destinationMac = header.GetAddr1();
-		bssid = header.GetAddr2();
-		sourceMac = header.GetAddr3();
-	}
-	else if (toDS && !fromDS) {
-		// From STA to AP
-		bssid = header.GetAddr1();
-		sourceMac = header.GetAddr2();
-		destinationMac = header.GetAddr3();
-	}
-	else {
-		// WDS: addr4 exists
-		bssid = Mac48Address(); // No BSSID
-		destinationMac = header.GetAddr3();
-		sourceMac = header.GetAddr4();
-	}
-
-    // Get transmission sniffer node ID from context
-    std::string::size_type pos = context.find("/NodeList/");
-    std::string nodeStr = context.substr(pos);
-    uint32_t txSnifferNodeId;
-    sscanf(nodeStr.c_str(), "/NodeList/%u/", &txSnifferNodeId);
-
-    // Cast values to int to avoid null bytes
-    int retries = static_cast<int>(txVector.GetRetries());
-    int ness = static_cast<int>(txVector.GetNess());
-    int nss = static_cast<int>(txVector.GetNss());
-    int txPowerLevel = static_cast<int>(txVector.GetTxPowerLevel());
-
-    // Log to file
-    std::string filePath = "postprocessing/logs/soil/MonitorSnifferTx.csv";
-    std::ofstream logFile(filePath, std::ios::app);
-    if(!logFile.is_open()) {
-        std::cout << "Error opening file for logging packet data: " << strerror(errno) << std::endl;
-        return;
-    }
-
-    // Write CSV line with all packet information
-    logFile << Simulator::Now() << ";"
-            << txSnifferNodeId << ";"
-			<< PacketToCsv(packet) << ";"
-			<< channelFreqMhz << ";"
-            << channelNumber << ";"
-            << rate << ";"
-            << (isShortPreamble ? "true" : "false") << ";"
-            << txVector.GetMode().GetUniqueName() << ";"
-            << retries << ";"
-            << ness << ";"
-            << nss << ";"
-            << (txVector.IsShortGuardInterval() ? "true" : "false") << ";"
-            << (txVector.IsStbc() ? "true" : "false") << ";"
-            << txPowerLevel << ";"
-            << (header.IsRetry() ? "true" : "false") << std::endl;
-    logFile.close();
-}
-
-void PhyTxRxBeginDropEndCallback(std::string context, Ptr<const Packet> packet){
-	std::string::size_type pos = context.find_last_of("/");
-	std::string traceSource = context.substr(pos + 1);
-
-	// Log to file
-    std::string filePath = "postprocessing/logs/soil/" + traceSource + ".csv";
-    std::ofstream logFile(filePath, std::ios::app);
-    if(!logFile.is_open()) {
-        std::cout << "Error opening file for logging packet data: " << strerror(errno) << std::endl;
-        return;
-    }
-
-	logFile << Simulator::Now() << ";"
-			<< PacketToCsv(packet) << std::endl;
-	logFile.close();
-}
 
 int main(int argc, char *argv[]) {
 	//LogComponentEnable("TCPSensorServer", LOG_ALL);
@@ -1227,11 +959,9 @@ int main(int argc, char *argv[]) {
 	mobilityAp.SetMobilityModel("ns3::ConstantPositionMobilityModel");
 	mobilityAp.Install(wifiApNode);
 
-    // Install the logger for the node positions whenever they change
-	Config::Connect(
-		"/NodeList/*/$ns3::MobilityModel/CourseChange",
-		MakeCallback(&CourseChangeCallback)
-	);
+    // Add position logging
+    PositionLogging posLogger("soil");
+    posLogger.EnableLogging();
 
 	// Make it so that nodes are at a certain height > 0
 	// RV: the nodes are assigned to certain RAW groups and slots.
@@ -1347,28 +1077,9 @@ int main(int argc, char *argv[]) {
 	Config::ConnectWithoutContext(oss.str() + "RawGroup", MakeCallback(&RawGroupTrace));
 	Config::ConnectWithoutContext(oss.str() + "RawSlot", MakeCallback(&RawSlotTrace));
 
-    // Install the package sniffers
-	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyTxBegin",
-		MakeCallback(&PhyTxRxBeginDropEndCallback));
-	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyTxEnd",
-		MakeCallback(&PhyTxRxBeginDropEndCallback));
-	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyTxDrop",
-		MakeCallback(&PhyTxRxBeginDropEndCallback));
-	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyRxBegin",
-		MakeCallback(&PhyTxRxBeginDropEndCallback));
-	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyRxEnd",
-		MakeCallback(&PhyTxRxBeginDropEndCallback));
-	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyRxDrop",
-		MakeCallback(&PhyTxRxBeginDropEndCallback));
-	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/MonitorSnifferTx",
-		MakeCallback(&MonitorSnifferTxCallback));
-	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/MonitorSnifferRx",
-		MakeCallback(&MonitorSnifferRxCallback));
-
-
-
-
-
+	// Install the packet sniffers 
+	PacketLogging logger("soil", wifiStaNode, wifiApNode);
+	logger.EnableLogging();
 
 
 
