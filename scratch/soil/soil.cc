@@ -360,7 +360,7 @@ static bool startedSending=false;
 void CourseChangeCallback(std::string context, Ptr<const MobilityModel> mobility){
 	//Print that we are logging the positions
 	std::cout << "Logging node positions" << std::endl;
-	std::string filePath = "postprocessing/logs/soil/course_change.csv";
+	std::string filePath = "postprocessing/logs/soil/CourseChange.csv";
 	ofstream logFile(filePath,fstream::out | fstream::app);
 	if(!logFile.is_open()){
 		std::cout<<"Error opening file for logging node positions: "<<strerror(errno)<<std::endl;
@@ -931,16 +931,11 @@ uint32_t GetNodeIdFromMacAddress(const Mac48Address& addr) {
     return -1; // Return -1 if not found
 }
 
-void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet, 
-    uint16_t channelFreqMhz, uint16_t channelNumber, 
-    uint32_t rate, bool isShortPreamble, 
-    WifiTxVector txVector,
-    double signalDbm, double noiseDbm)
-{
-    // Extract MAC header for source/destination info
-    WifiMacHeader header;
-    packet->PeekHeader(header);
-    
+std::string PacketToCsv(Ptr<const Packet> packet){
+	// Extract MAC header for source/destination info
+	WifiMacHeader header;
+	packet->PeekHeader(header);
+	
 	// Get MAC addresses based on ToDS and FromDS bits
 	bool toDS = header.IsToDs();
 	bool fromDS = header.IsFromDs();
@@ -975,6 +970,36 @@ void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet,
 		destinationMac = header.GetAddr3();
 		sourceMac = header.GetAddr4();
 	}
+	
+	std::stringstream ss;
+
+	ss << packet->GetUid() << ";"
+	   << packet->GetSize() << ";" 
+	   << receiverMac << ";"
+	   << (GetNodeIdFromMacAddress(receiverMac) == ((uint32_t) -1) ? "?" : std::to_string(GetNodeIdFromMacAddress(receiverMac))) << ";"
+	   << transmitterMac << ";"
+	   << (GetNodeIdFromMacAddress(transmitterMac) == ((uint32_t) -1) ? "?" : std::to_string(GetNodeIdFromMacAddress(transmitterMac))) << ";"
+	   << bssid << ";"
+	   << (GetNodeIdFromMacAddress(bssid) == ((uint32_t) -1) ? "?" : std::to_string(GetNodeIdFromMacAddress(bssid))) << ";"
+	   << destinationMac << ";"
+	   << (GetNodeIdFromMacAddress(destinationMac) == ((uint32_t) -1) ? "?" : std::to_string(GetNodeIdFromMacAddress(destinationMac))) << ";"
+	   << sourceMac << ";"
+	   << (GetNodeIdFromMacAddress(sourceMac) == ((uint32_t) -1) ? "?" : std::to_string(GetNodeIdFromMacAddress(sourceMac)));
+
+	return ss.str();
+}
+
+
+
+void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet, 
+    uint16_t channelFreqMhz, uint16_t channelNumber, 
+    uint32_t rate, bool isShortPreamble, 
+    WifiTxVector txVector,
+    double signalDbm, double noiseDbm)
+{
+    // Extract MAC header for source/destination info
+    WifiMacHeader header;
+    packet->PeekHeader(header);
 
 	// Get interceptor node ID from context
 	std::string::size_type pos = context.find("/NodeList/");
@@ -983,8 +1008,8 @@ void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet,
     sscanf(nodeStr.c_str(), "/NodeList/%u/", &rxSnifferNodeId);
 
 	// If interceptor != intended recipient, skip logging
-	if (rxSnifferNodeId != GetNodeIdFromMacAddress(destinationMac)) 
-	    return;
+	//if (rxSnifferNodeId != GetNodeIdFromMacAddress(destinationMac)) 
+	//    return;
 
     // Cast values to int to avoid null bytes
     int retries = static_cast<int>(txVector.GetRetries());
@@ -993,7 +1018,7 @@ void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet,
     int txPowerLevel = static_cast<int>(txVector.GetTxPowerLevel());
 
     // Log to file
-    std::string filePath = "postprocessing/logs/soil/monitor_sniffer_rx.csv";
+    std::string filePath = "postprocessing/logs/soil/MonitorSnifferRx.csv";
     std::ofstream logFile(filePath, std::ios::app);
     if(!logFile.is_open()) {
         std::cout << "Error opening file for logging packet data: " << strerror(errno) << std::endl;
@@ -1002,23 +1027,12 @@ void MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet,
 
     // Write CSV line with all packet information
     logFile << Simulator::Now() << ";"
-            << packet->GetUid() << ";" 
-			<< packet->GetSize() << ";"
+            << rxSnifferNodeId << ";"
+            << PacketToCsv(packet) << ";" 
             << channelFreqMhz << ";"
             << channelNumber << ";"
             << rate << ";"
             << (isShortPreamble ? "true" : "false") << ";"
-            << rxSnifferNodeId << ";"
-			<< receiverMac << ";"
-			<< GetNodeIdFromMacAddress(receiverMac) << ";"
-			<< transmitterMac << ";"
-			<< GetNodeIdFromMacAddress(transmitterMac) << ";"
-			<< bssid << ";"
-			<< GetNodeIdFromMacAddress(bssid) << ";"
-			<< destinationMac << ";"
-			<< GetNodeIdFromMacAddress(destinationMac) << ";"
-			<< sourceMac << ";"
-			<< GetNodeIdFromMacAddress(sourceMac) << ";"
 			<< txVector.GetMode().GetUniqueName() << ";"
             << retries << ";"
             << ness << ";"
@@ -1089,7 +1103,7 @@ void MonitorSnifferTxCallback(std::string context, Ptr<const Packet> packet,
     int txPowerLevel = static_cast<int>(txVector.GetTxPowerLevel());
 
     // Log to file
-    std::string filePath = "postprocessing/logs/soil/monitor_sniffer_tx.csv";
+    std::string filePath = "postprocessing/logs/soil/MonitorSnifferTx.csv";
     std::ofstream logFile(filePath, std::ios::app);
     if(!logFile.is_open()) {
         std::cout << "Error opening file for logging packet data: " << strerror(errno) << std::endl;
@@ -1098,23 +1112,12 @@ void MonitorSnifferTxCallback(std::string context, Ptr<const Packet> packet,
 
     // Write CSV line with all packet information
     logFile << Simulator::Now() << ";"
-            << packet->GetUid() << ";"
-			<< packet->GetSize() << ";"
+            << txSnifferNodeId << ";"
+			<< PacketToCsv(packet) << ";"
 			<< channelFreqMhz << ";"
             << channelNumber << ";"
             << rate << ";"
             << (isShortPreamble ? "true" : "false") << ";"
-            << txSnifferNodeId << ";"
-			<< receiverMac << ";"
-			<< GetNodeIdFromMacAddress(receiverMac) << ";"
-			<< transmitterMac << ";"
-			<< GetNodeIdFromMacAddress(transmitterMac) << ";"
-			<< bssid << ";"
-			<< GetNodeIdFromMacAddress(bssid) << ";"
-			<< destinationMac << ";"
-			<< GetNodeIdFromMacAddress(destinationMac) << ";"
-			<< sourceMac << ";"
-			<< GetNodeIdFromMacAddress(sourceMac) << ";"
             << txVector.GetMode().GetUniqueName() << ";"
             << retries << ";"
             << ness << ";"
@@ -1124,6 +1127,23 @@ void MonitorSnifferTxCallback(std::string context, Ptr<const Packet> packet,
             << txPowerLevel << ";"
             << (header.IsRetry() ? "true" : "false") << std::endl;
     logFile.close();
+}
+
+void PhyTxRxBeginDropEndCallback(std::string context, Ptr<const Packet> packet){
+	std::string::size_type pos = context.find_last_of("/");
+	std::string traceSource = context.substr(pos + 1);
+
+	// Log to file
+    std::string filePath = "postprocessing/logs/soil/" + traceSource + ".csv";
+    std::ofstream logFile(filePath, std::ios::app);
+    if(!logFile.is_open()) {
+        std::cout << "Error opening file for logging packet data: " << strerror(errno) << std::endl;
+        return;
+    }
+
+	logFile << Simulator::Now() << ";"
+			<< PacketToCsv(packet) << std::endl;
+	logFile.close();
 }
 
 int main(int argc, char *argv[]) {
@@ -1328,6 +1348,18 @@ int main(int argc, char *argv[]) {
 	Config::ConnectWithoutContext(oss.str() + "RawSlot", MakeCallback(&RawSlotTrace));
 
     // Install the package sniffers
+	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyTxBegin",
+		MakeCallback(&PhyTxRxBeginDropEndCallback));
+	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyTxEnd",
+		MakeCallback(&PhyTxRxBeginDropEndCallback));
+	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyTxDrop",
+		MakeCallback(&PhyTxRxBeginDropEndCallback));
+	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyRxBegin",
+		MakeCallback(&PhyTxRxBeginDropEndCallback));
+	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyRxEnd",
+		MakeCallback(&PhyTxRxBeginDropEndCallback));
+	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyRxDrop",
+		MakeCallback(&PhyTxRxBeginDropEndCallback));
 	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/MonitorSnifferTx",
 		MakeCallback(&MonitorSnifferTxCallback));
 	Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/MonitorSnifferRx",
