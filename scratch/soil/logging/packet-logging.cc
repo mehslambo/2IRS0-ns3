@@ -14,14 +14,14 @@
 using namespace ns3;
 
 const std::map<std::string, std::string> PacketLogging::CSV_HEADERS = {
-    {"MonitorSnifferRx", "Time;RxNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry;ChannelFreqMHz;ChannelNumber;Rate;IsShortPreamble;Mode;Retries;Ness;Nss;IsShortGuardInterval;IsStbc;TxPowerLevel;NoiseDbm;SignalDbm"},
-    {"MonitorSnifferTx", "Time;TxNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry;ChannelFreqMHz;ChannelNumber;Rate;IsShortPreamble;Mode;Retries;Ness;Nss;IsShortGuardInterval;IsStbc;TxPowerLevel"},
-    {"PhyTxBegin", "Time;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"},
-    {"PhyTxEnd", "Time;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"},
-    {"PhyTxDrop", "Time;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"},
-    {"PhyRxBegin", "Time;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"},
-    {"PhyRxEnd", "Time;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"},
-    {"PhyRxDrop", "Time;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"}
+    {"MonitorSnifferRx", "Time;SnifferNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry;ChannelFreqMHz;ChannelNumber;Rate;IsShortPreamble;Mode;Retries;Ness;Nss;IsShortGuardInterval;IsStbc;TxPowerLevel;NoiseDbm;SignalDbm"},
+    {"MonitorSnifferTx", "Time;SnifferNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry;ChannelFreqMHz;ChannelNumber;Rate;IsShortPreamble;Mode;Retries;Ness;Nss;IsShortGuardInterval;IsStbc;TxPowerLevel"},
+    {"PhyTxBegin", "Time;SnifferNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"},
+    {"PhyTxEnd", "Time;SnifferNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"},
+    {"PhyTxDrop", "Time;SnifferNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"},
+    {"PhyRxBegin", "Time;SnifferNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"},
+    {"PhyRxEnd", "Time;SnifferNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"},
+    {"PhyRxDrop", "Time;SnifferNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"}
 };
 
 PacketLogging::PacketLogging(const std::string& scenarioName, 
@@ -261,8 +261,14 @@ void PacketLogging::MonitorSnifferTxCallback(std::string context, Ptr<const Pack
 }
 
 void PacketLogging::PhyTxRxBeginDropEndCallback(std::string context, Ptr<const Packet> packet){
-    std::string::size_type pos = context.find_last_of("/");
-    std::string traceSource = context.substr(pos + 1);
+    std::string::size_type traceSourcePos = context.find_last_of("/");
+    std::string traceSource = context.substr(traceSourcePos + 1);
+
+    // Get sniffer node ID from context
+    std::string::size_type pos = context.find("/NodeList/");
+    std::string nodeStr = context.substr(pos);
+    uint32_t snifferNodeId;
+    sscanf(nodeStr.c_str(), "/NodeList/%u/", &snifferNodeId);
 
     auto& logFile = m_logFiles[traceSource];
     if(!logFile.is_open()) {
@@ -271,6 +277,7 @@ void PacketLogging::PhyTxRxBeginDropEndCallback(std::string context, Ptr<const P
     }
 
 	logFile << Simulator::Now() << ";"
+            << snifferNodeId << ";"
 			<< PacketToCsv(packet) << std::endl;
 }
 
