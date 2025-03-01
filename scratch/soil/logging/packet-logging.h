@@ -16,9 +16,18 @@
 
 using namespace ns3;
 
+struct MacAddresses {
+    Mac48Address receiver;
+    Mac48Address transmitter;
+    Mac48Address destination;
+    Mac48Address source;
+    Mac48Address bssid;
+};
+
 class PacketLogging {
 public:
     PacketLogging(const std::string& scenarioName, const NodeContainer& staNodes, const NodeContainer& apNodes);
+    MacAddresses ExtractMacAddresses(const WifiMacHeader& header);
     
     void EnableLogging();
     
