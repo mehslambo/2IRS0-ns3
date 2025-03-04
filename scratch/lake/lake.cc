@@ -1004,17 +1004,15 @@ int main(int argc, char *argv[]) {
 	// ************
 
 	Ptr<UnderwaterPropagationLossModel> loss = CreateObject<UnderwaterPropagationLossModel>();
-	loss->SetAttribute("Frequency", DoubleValue(904000000));  // HaLow frequency based on what's seen in PHY logging
-	loss->SetAttribute("Temperature", DoubleValue(15));  // Temp of lakes ranges [10, 20]
-	loss->SetAttribute("Salinity", DoubleValue(.1));  // Assuming freshwater
-	loss->SetAttribute("RelativePermittivity", DoubleValue(80));  // Epsillon r, look up in table?
+	loss->SetAttribute("Frequency", DoubleValue(904e6));  // HaLow frequency based on what's seen in PHY logging
+	loss->SetAttribute("Conductivity", DoubleValue(15));  // Conductivity of water (in S/m)
+	loss->SetAttribute("RelativePermittivity", DoubleValue(.1));  // Epsillon r, look up in table
 
   	Ptr<UnderwaterPropagationDelayModel> delay = CreateObject<UnderwaterPropagationDelayModel> ();
-	delay->SetAttribute("Frequency", DoubleValue(904000000));  // HaLow frequency based on what's seen in PHY logging
-	delay->SetAttribute("Temperature", DoubleValue(15));  // Temp of lakes ranges [10, 20]
-	delay->SetAttribute("Salinity", DoubleValue(.1));  // Assuming freshwater
-	delay->SetAttribute("RelativePermittivity", DoubleValue(80));  // Epsillon r, look up in table?
-
+	delay->SetAttribute("Frequency", DoubleValue(904e6));  // HaLow frequency based on what's seen in PHY logging
+	delay->SetAttribute("Conductivity", DoubleValue(15));  // Conductivity of water (in S/m)
+	delay->SetAttribute("RelativePermittivity", DoubleValue(.1));  // Epsillon r, look up in table
+  
   	Ptr<YansWifiChannel> channel = CreateObject<YansWifiChannel> ();
 	  channel->SetPropagationLossModel(loss);
 	  channel->SetPropagationDelayModel(delay);

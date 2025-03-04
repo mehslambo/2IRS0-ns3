@@ -20,25 +20,20 @@ UnderwaterPropagationDelayModel::GetTypeId (void)
     .SetGroupName ("Propagation")
     .AddConstructor<UnderwaterPropagationDelayModel> ()
     .AddAttribute ("Frequency",
-                   "The signal frequency in Hz",
-                   DoubleValue (1e6),
-                   MakeDoubleAccessor (&UnderwaterPropagationDelayModel::m_frequency),
-                   MakeDoubleChecker<double> ())
-    .AddAttribute ("Temperature",
-                   "Water temperature in Celsius",
-                   DoubleValue (25.0),
-                   MakeDoubleAccessor (&UnderwaterPropagationDelayModel::m_temperature),
-                   MakeDoubleChecker<double> ())
-    .AddAttribute ("Salinity",
-                   "Water salinity in parts per thousand (ppt)",
-                   DoubleValue (35.0),
-                   MakeDoubleAccessor (&UnderwaterPropagationDelayModel::m_salinity),
-                   MakeDoubleChecker<double> ())
+          "The frequency (in Hz) at which the model is applied.",
+          DoubleValue (900e6),
+          MakeDoubleAccessor (&UnderwaterPropagationDelayModel::m_frequency),
+          MakeDoubleChecker<double> (0))
+    .AddAttribute ("Conductivity",
+          "The conductivity (in S/m) of the water. Default: 0.02 S/m (tap water).",
+          DoubleValue (0.02),
+          MakeDoubleAccessor (&UnderwaterPropagationDelayModel::m_sigma),
+          MakeDoubleChecker<double> (0))
     .AddAttribute ("RelativePermittivity",
-                   "Relative permittivity of water",
-                   DoubleValue (80.0),
-                   MakeDoubleAccessor (&UnderwaterPropagationDelayModel::m_relativePermittivity),
-                   MakeDoubleChecker<double> ());
+          "The relative permittivity of the water. Default: 81.0 (tap water).",
+          DoubleValue (81.0),
+          MakeDoubleAccessor (&UnderwaterPropagationDelayModel::m_epsilon_r),
+          MakeDoubleChecker<double> (0));
   return tid;
 }
 
@@ -55,47 +50,38 @@ UnderwaterPropagationDelayModel::~UnderwaterPropagationDelayModel ()
 Time
 UnderwaterPropagationDelayModel::GetDelay (Ptr<MobilityModel> a, Ptr<MobilityModel> b) const
 {
-  // Compute distance between transmitter and receiver.
+  // Get node positions
   Vector posA = a->GetPosition ();
   Vector posB = b->GetPosition ();
+
+  // Calculate the Euclidean distance D (in meters)
   double dx = posA.x - posB.x;
   double dy = posA.y - posB.y;
   double dz = posA.z - posB.z;
-  double distance = std::sqrt (dx * dx + dy * dy + dz * dz);
+  double D = std::sqrt (dx*dx + dy*dy + dz*dz);
 
-  // Physical constants.
-  const double epsilon0 = 8.854187817e-12; // F/m
-  const double mu0 = 4 * M_PI * 1e-7;        // H/m
+  // Constants
+  const double pi = std::acos (-1.0);
+  const double mu0 = 4 * pi * 1e-7;       // Permeability of free space (H/m)
+  const double epsilon0 = 8.85e-12;         // Permittivity of free space (F/m)
 
-  // Angular frequency ω = 2πf.
-  double omega = 2 * M_PI * m_frequency;
-  // Permittivity ε = ε0 * εr.
-  double epsilon = epsilon0 * m_relativePermittivity;
+  // Calculate absolute permittivity (F/m)
+  double epsilon = epsilon0 * m_epsilon_r;
 
-  // --- Salinity-Based Conductivity ---
-  double sigma25 = m_salinity * (0.182521 
-                  - 1.46192e-3 * m_salinity 
-                  + 2.09324e-5 * m_salinity * m_salinity 
-                  - 1.82025e-7 * m_salinity * m_salinity * m_salinity);
-  double delta = 25.0 - m_temperature;
-  double phi = delta * (0.02033 
-                + 1.266e-4 * delta 
-                + 2.464e-4 * delta * delta 
-                - m_salinity * (1.849e-5 
-                - 2.551e-7 * delta 
-                + 2.551e-8 * delta * delta));
-  double sigma = sigma25 * std::exp (-phi);
+  // Angular frequency (rad/s)
+  double omega = 2 * pi * m_frequency;
 
-  // --- Exact Expression for β ---
-  double factor = sigma / (omega * epsilon);
-  double sqrtTerm = std::sqrt (1.0 + factor * factor);
-  // Phase constant β (in rad/m)
-  double beta = omega * std::sqrt ((mu0 * epsilon / 2.0) * (sqrtTerm + 1.0));
+  // Compute term = sigma/(omega*epsilon)
+  double term = m_sigma / (omega * epsilon);
+  double sqrt_inner = std::sqrt (1.0 + term * term);
 
-  // --- Propagation Delay Calculation ---
-  // Using the expression: t_delay = (D * β) / ω.
-  double delaySec = (distance * beta) / omega;
-  return Seconds (delaySec);
+  // Calculate phase constant beta (rad/m)
+  double beta = omega * std::sqrt ((mu0 * epsilon / 2.0) * (sqrt_inner + 1.0));
+
+  // Calculate the one-way delay: t_delay = (D * beta) / omega (in seconds)
+  double delaySeconds = (D * beta) / omega;
+
+  return Seconds (delaySeconds);
 }
 
 int64_t

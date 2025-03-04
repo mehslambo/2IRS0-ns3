@@ -25,14 +25,12 @@ protected:
    */
   virtual double DoCalcLoss (Ptr<MobilityModel> a, Ptr<MobilityModel> b) const;
 private:
-  // Frequency in Hz.
+  // The frequency (in Hz) at which the model is applied
   double m_frequency;
-  // Water temperature in Celsius.
-  double m_temperature;
-  // Salinity in parts per thousand (ppt).
-  double m_salinity;
-  // Relative permittivity (dimensionless).
-  double m_relativePermittivity;
+  // The conductivity (in S/m) of the water
+  double m_sigma;
+  // The relative permittivity of the water
+  double m_epsilon_r;
 
   virtual int64_t DoAssignStreams (int64_t stream);
 };

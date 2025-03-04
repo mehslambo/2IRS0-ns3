@@ -993,7 +993,7 @@ int main(int argc, char *argv[]) {
     //double dist = 5049 / perAxis;
     //double x = dist * (i % perAxis);
     //double y = dist * int(i / perAxis);
-    wifiApNode.Get(i)->GetObject<MobilityModel>()->SetPosition(Vector(areaSize/2.0,areaSize/2.0,2.0));
+    wifiApNode.Get(i)->GetObject<MobilityModel>()->SetPosition(Vector(areaSize/2.0,areaSize/2.0,0.1));
   }
 
 
