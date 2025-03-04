@@ -58,7 +58,7 @@ Time stopTime = Hours(2);
 
 uint32_t gateways = 1;
 uint32_t totalNodes = 200;
-uint32_t perAxis = 15;
+uint32_t perAxis = 10;
 
 uint32_t packetSize = 1;
 int32_t totalSize = 1;
