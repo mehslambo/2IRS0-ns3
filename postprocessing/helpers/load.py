@@ -48,3 +48,13 @@ def load_phy_tx_drop(scenario_folder:Path) -> pd.DataFrame:
     df = load_phy_df(scenario_folder / 'PhyTxDrop.csv')
     df = df[df["SnifferNodeId"] == df["SourceNodeId"]]
     return df
+
+def load_monitor_sniffer_rx(scenario_folder:Path) -> pd.DataFrame:
+    df = load_phy_df(scenario_folder / 'MonitorSnifferRx.csv')
+    df = df[df["SnifferNodeId"] == df["DestinationNodeId"]]
+    return df
+
+def load_monitor_sniffer_tx(scenario_folder:Path) -> pd.DataFrame:
+    df = load_phy_df(scenario_folder / 'MonitorSnifferTx.csv')
+    df = df[df["SnifferNodeId"] == df["SourceNodeId"]]
+    return df
