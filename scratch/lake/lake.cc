@@ -59,14 +59,13 @@ Statistics stats;
 Time stopTime = Hours(2);
 
 uint32_t gateways = 1;
-uint32_t totalNodes = 50;
-uint32_t perAxis = 10;
+uint32_t totalNodes = 200;
+double nodeSpacing = 0.01; // 1cm
 
 uint32_t packetSize = 1;
 int32_t totalSize = 1;
 
-double areaSize = 1;
-double depth = 0.1;
+double depth = 0.01; // 1cm
 
 uint32_t simTime = 3600;
 uint32_t timeOut = 10;
@@ -889,11 +888,10 @@ int main(int argc, char *argv[]) {
 
 	CommandLine cmd;
 	cmd.AddValue("sensors", "Number of sensors", totalNodes);
-	cmd.AddValue("perAxis", "Sensors per axis", perAxis);
 	cmd.AddValue("packetSize", "Size of sensor packet", packetSize);
 	cmd.AddValue("totalSize", "Total bytes to be send", totalSize);
 	// cmd.AddValue("areaSize", "Length of side of the area", areaSize);
-	cmd.AddValue("areaSize", "Length of the side of the area", areaSize);
+	cmd.AddValue("nodeSpacing", "Spacing between nodes", nodeSpacing);
 	cmd.AddValue("depth", "Depth underwater",depth);
         cmd.AddValue("stopTime", "Simulation time in seconds", simTime);
         cmd.AddValue("timeOut", "Association timeout in seconds", timeOut);
@@ -973,13 +971,11 @@ int main(int argc, char *argv[]) {
   for (NodeContainer::Iterator j = wifiStaNode.Begin (); j != wifiStaNode.End (); ++j)
     {
       Ptr<MobilityModel> mobility = (*j)->GetObject<MobilityModel> ();
-    	double dist = 1.0 * areaSize / perAxis;
-       double x = 0.5 * dist + dist * (counter % perAxis);
-        double y = 0.5*dist + dist * int(counter / perAxis);
+      double x = nodeSpacing * counter;
 
       Vector position = mobility->GetPosition ();
       position.x = x;
-      position.y = y;
+      position.y = 0;
       position.z = -(depth);
       mobility->SetPosition (position);
       
@@ -995,7 +991,7 @@ int main(int argc, char *argv[]) {
     //double dist = 5049 / perAxis;
     //double x = dist * (i % perAxis);
     //double y = dist * int(i / perAxis);
-    wifiApNode.Get(i)->GetObject<MobilityModel>()->SetPosition(Vector(areaSize/2.0,areaSize/2.0,0));
+    wifiApNode.Get(i)->GetObject<MobilityModel>()->SetPosition(Vector(0,0,0));
   }
 
 
@@ -1003,19 +999,17 @@ int main(int argc, char *argv[]) {
 	// CHANNEL 
 	// ************
 
-	Ptr<UnderwaterPropagationLossModel> loss = CreateObject<UnderwaterPropagationLossModel>();
-	loss->SetAttribute("Frequency", DoubleValue(904e6));  // HaLow frequency based on what's seen in PHY logging
-	loss->SetAttribute("Conductivity", DoubleValue(15));  // Conductivity of water (in S/m)
-	loss->SetAttribute("RelativePermittivity", DoubleValue(.1));  // Epsillon r, look up in table
 
-  	Ptr<UnderwaterPropagationDelayModel> delay = CreateObject<UnderwaterPropagationDelayModel> ();
-	delay->SetAttribute("Frequency", DoubleValue(904e6));  // HaLow frequency based on what's seen in PHY logging
-	delay->SetAttribute("Conductivity", DoubleValue(15));  // Conductivity of water (in S/m)
-	delay->SetAttribute("RelativePermittivity", DoubleValue(.1));  // Epsillon r, look up in table
+	Ptr<FriisPropagationLossModel> friisLoss = CreateObject<FriisPropagationLossModel>();
+
+	Ptr<UnderwaterPropagationLossModel> underwaterLoss = CreateObject<UnderwaterPropagationLossModel>();
+
+  	Ptr<UnderwaterPropagationDelayModel> underwaterDelay = CreateObject<UnderwaterPropagationDelayModel> ();
   
-  	Ptr<YansWifiChannel> channel = CreateObject<YansWifiChannel> ();
-	  channel->SetPropagationLossModel(loss);
-	  channel->SetPropagationDelayModel(delay);
+	Ptr<YansWifiChannel> channel = CreateObject<YansWifiChannel> ();
+	friisLoss->SetNext(underwaterLoss);
+	channel->SetPropagationLossModel(friisLoss);
+	channel->SetPropagationDelayModel(underwaterDelay);
 	channel->TraceConnectWithoutContext("Transmission",
 			MakeCallback(&onChannelTransmission)); //TODO
 
@@ -1069,6 +1063,14 @@ int main(int argc, char *argv[]) {
 	phy.Set("RxNoiseFigure", DoubleValue(6.8));
 
 	apDevice = wifi.Install(phy, mac, wifiApNode);
+
+	Ptr<WifiNetDevice> wifiApNodeToGetFrequency = DynamicCast<WifiNetDevice>(wifiApNode.Get(0)->GetDevice(0));
+	Ptr<WifiPhy> phyToGetFrequency = wifiApNodeToGetFrequency->GetPhy();
+	double ApFrequencyHz = phyToGetFrequency->GetFrequency() * 1e6;
+	std::cout<<"AP operates at "<<ApFrequencyHz<<" Hz"<<std::endl;
+	
+	underwaterLoss->SetAttribute("Frequency", DoubleValue(ApFrequencyHz));  // HaLow frequency based on what's seen in PHY logging
+	underwaterDelay->SetAttribute("Frequency", DoubleValue(ApFrequencyHz));  // HaLow frequency based on what's seen in PHY logging
 
 	Config::Set(
 			"/NodeList/*/DeviceList/0/$ns3::WifiNetDevice/Mac/$ns3::RegularWifiMac/BE_EdcaTxopN/Queue/MaxPacketNumber",

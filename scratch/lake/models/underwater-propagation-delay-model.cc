@@ -6,6 +6,7 @@
 #include "ns3/mobility-model.h"
 #include "ns3/simulator.h"
 #include <cmath>
+#include <complex>
 
 namespace ns3 {
 
@@ -25,14 +26,24 @@ UnderwaterPropagationDelayModel::GetTypeId (void)
           MakeDoubleAccessor (&UnderwaterPropagationDelayModel::m_frequency),
           MakeDoubleChecker<double> (0))
     .AddAttribute ("Conductivity",
-          "The conductivity (in S/m) of the water. Default: 0.02 S/m (tap water).",
-          DoubleValue (0.02),
+          "The conductivity (in S/m) of the water. Default: 0.01 S/m (tap water).",
+          DoubleValue (0.01),
           MakeDoubleAccessor (&UnderwaterPropagationDelayModel::m_sigma),
           MakeDoubleChecker<double> (0))
-    .AddAttribute ("RelativePermittivity",
-          "The relative permittivity of the water. Default: 81.0 (tap water).",
-          DoubleValue (81.0),
-          MakeDoubleAccessor (&UnderwaterPropagationDelayModel::m_epsilon_r),
+    .AddAttribute ("StaticPermittivity",
+          "The real relative permittivity of the water at low frequencies. Default: 80 (tap water).",
+          DoubleValue (80),
+          MakeDoubleAccessor (&UnderwaterPropagationDelayModel::m_epsilon_s),
+          MakeDoubleChecker<double> (0))
+    .AddAttribute ("HighFrequencyPermittivity",
+          "The real relative permittivity of the water at high frequencies. Default: 4.22 (tap water).",
+          DoubleValue (4.22),
+          MakeDoubleAccessor (&UnderwaterPropagationDelayModel::m_epsilon_inf),
+          MakeDoubleChecker<double> (0))
+    .AddAttribute ("RelaxationFrequency",
+          "The relaxation frequency of the water. Default: 17.4e9 Hz (tap water).",
+          DoubleValue (17.4e9),
+          MakeDoubleAccessor (&UnderwaterPropagationDelayModel::m_f_ref),
           MakeDoubleChecker<double> (0));
   return tid;
 }
@@ -50,36 +61,28 @@ UnderwaterPropagationDelayModel::~UnderwaterPropagationDelayModel ()
 Time
 UnderwaterPropagationDelayModel::GetDelay (Ptr<MobilityModel> a, Ptr<MobilityModel> b) const
 {
-  // Get node positions
   Vector posA = a->GetPosition ();
   Vector posB = b->GetPosition ();
-
-  // Calculate the Euclidean distance D (in meters)
   double dx = posA.x - posB.x;
   double dy = posA.y - posB.y;
   double dz = posA.z - posB.z;
-  double D = std::sqrt (dx*dx + dy*dy + dz*dz);
+  double D  = std::sqrt (dx * dx + dy * dy + dz * dz);
 
-  // Constants
-  const double pi = std::acos (-1.0);
-  const double mu0 = 4 * pi * 1e-7;       // Permeability of free space (H/m)
-  const double epsilon0 = 8.85e-12;         // Permittivity of free space (F/m)
+  double pi = std::acos(-1.0);
+  double mu0 = 4.0 * pi * 1e-7;
+  double epsilon0 = 8.85e-12;
+  double c = 2.998e8;
+  double omega = 2.0 * pi * m_frequency;
 
-  // Calculate absolute permittivity (F/m)
-  double epsilon = epsilon0 * m_epsilon_r;
+  std::complex<double> j (0.0, 1.0);
+  std::complex<double> denom = 1.0 + j * (m_frequency / m_f_ref);
+  std::complex<double> epsilon_r = m_epsilon_inf + (m_epsilon_s - m_epsilon_inf) / denom;
+  std::complex<double> epsilon = epsilon0 * epsilon_r;
 
-  // Angular frequency (rad/s)
-  double omega = 2 * pi * m_frequency;
+  std::complex<double> gamma = std::sqrt (j * omega * mu0 * (m_sigma + j * omega * epsilon));
+  double beta = std::imag (gamma);
 
-  // Compute term = sigma/(omega*epsilon)
-  double term = m_sigma / (omega * epsilon);
-  double sqrt_inner = std::sqrt (1.0 + term * term);
-
-  // Calculate phase constant beta (rad/m)
-  double beta = omega * std::sqrt ((mu0 * epsilon / 2.0) * (sqrt_inner + 1.0));
-
-  // Calculate the one-way delay: t_delay = (D * beta) / omega (in seconds)
-  double delaySeconds = (D * beta) / omega;
+  double delaySeconds = D / (omega/beta);
 
   return Seconds (delaySeconds);
 }

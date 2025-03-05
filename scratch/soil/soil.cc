@@ -58,13 +58,12 @@ Time stopTime = Hours(2);
 
 uint32_t gateways = 1;
 uint32_t totalNodes = 200;
-uint32_t perAxis = 10;
+double nodeSpacing = 0.01; // 1cm
 
 uint32_t packetSize = 1;
 int32_t totalSize = 1;
 
-double areaSize = 12.0;
-double depth = 0.3;
+double depth = 0.01; // 1cm
 
 uint32_t simTime = 3600;
 uint32_t timeOut = 10;
@@ -887,11 +886,10 @@ int main(int argc, char *argv[]) {
 
 	CommandLine cmd;
 	cmd.AddValue("sensors", "Number of sensors", totalNodes);
-	cmd.AddValue("perAxis", "Sensors per axis", perAxis);
 	cmd.AddValue("packetSize", "Size of sensor packet", packetSize);
 	cmd.AddValue("totalSize", "Total bytes to be send", totalSize);
 	// cmd.AddValue("areaSize", "Length of side of the area", areaSize);
-	cmd.AddValue("areaSize", "Length of the side of the area", areaSize);
+	cmd.AddValue("nodeSpacing", "Spacing between nodes", nodeSpacing);
 	cmd.AddValue("depth", "Depth below ground",depth);
         cmd.AddValue("stopTime", "Simulation time in seconds", simTime);
         cmd.AddValue("timeOut", "Association timeout in seconds", timeOut);
@@ -971,13 +969,11 @@ int main(int argc, char *argv[]) {
   for (NodeContainer::Iterator j = wifiStaNode.Begin (); j != wifiStaNode.End (); ++j)
     {
       Ptr<MobilityModel> mobility = (*j)->GetObject<MobilityModel> ();
-    	double dist = 1.0 * areaSize / perAxis;
-       double x = 0.5 * dist + dist * (counter % perAxis);
-        double y = 0.5*dist + dist * int(counter / perAxis);
+      double x = nodeSpacing * counter;
 
       Vector position = mobility->GetPosition ();
       position.x = x;
-      position.y = y;
+      position.y = 0;
       position.z = -(depth);
       mobility->SetPosition (position);
       
@@ -993,7 +989,7 @@ int main(int argc, char *argv[]) {
     //double dist = 5049 / perAxis;
     //double x = dist * (i % perAxis);
     //double y = dist * int(i / perAxis);
-    wifiApNode.Get(i)->GetObject<MobilityModel>()->SetPosition(Vector(areaSize/2.0,areaSize/2.0,0.001));
+    wifiApNode.Get(i)->GetObject<MobilityModel>()->SetPosition(Vector(0,0,0));
   }
 
 

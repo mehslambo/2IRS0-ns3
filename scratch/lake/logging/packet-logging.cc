@@ -175,8 +175,6 @@ std::string PacketLogging::PacketToCsv(Ptr<const Packet> packet){
 	return ss.str();
 }
 
-
-
 void PacketLogging::MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet, 
     uint16_t channelFreqMhz, uint16_t channelNumber, 
     uint32_t rate, bool isShortPreamble, 
