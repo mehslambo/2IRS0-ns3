@@ -37,6 +37,8 @@
 #include "logging/packet-logging.cc"
 #include "logging/position-logging.h"
 #include "logging/position-logging.cc"
+#include "logging/power-logging.h"
+#include "logging/power-logging.cc"
 #include <cstring>
 #include <string.h>
 #include <cerrno>
@@ -739,7 +741,7 @@ void configureTCPSensorClients() {
     {
       if (IsAssoc(i)) {
         //factory.Set("id", UintegerValue(i));
-        factory.Set("Interval", TimeValue(MilliSeconds(10)));
+        factory.Set("Interval", TimeValue(MilliSeconds(250)));
         Ptr<Application> tcpClient = factory.Create<TCPSensorClient>();
         wifiStaNode.Get(i)->AddApplication(tcpClient);
         auto clientApp = ApplicationContainer(tcpClient);
@@ -1102,8 +1104,12 @@ int main(int argc, char *argv[]) {
 	Config::ConnectWithoutContext(oss.str() + "RawSlot", MakeCallback(&RawSlotTrace));
 
 	// Install the packet sniffers
-	PacketLogging logger(scenarioLogName.str(), wifiStaNode, wifiApNode);
-	logger.EnableLogging();
+	PacketLogging packetLogger(scenarioLogName.str(), wifiStaNode, wifiApNode);
+	packetLogger.EnableLogging();
+
+	// Install the power sniffers
+	PowerLogging powerLogger(scenarioLogName.str(), wifiStaNode, wifiApNode);
+	powerLogger.EnableLogging();
 
 	/* Internet stack*/
 	InternetStackHelper stack;

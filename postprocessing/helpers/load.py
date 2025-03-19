@@ -61,3 +61,11 @@ def load_monitor_sniffer_tx(scenario_folder:Path) -> pd.DataFrame:
     df = load_phy_df(scenario_folder / 'MonitorSnifferTx.csv')
     df = df[df["SnifferNodeId"] == df["SourceNodeId"]]
     return df
+
+def load_power_state_df(scenario_folder:Path) -> pd.DataFrame:
+    df = pd.read_csv(scenario_folder / 'PowerState.csv', delimiter=';', index_col=False)
+    df["Start"] = df["Start"].str.replace('ns', '').astype(float)
+    df["Duration"] = df["Duration"].str.replace('ns', '').astype(float)
+    df.drop_duplicates(subset=["Start","NodeId"], keep='last', inplace=True)
+    df.reset_index(drop=True, inplace=True)
+    return df
