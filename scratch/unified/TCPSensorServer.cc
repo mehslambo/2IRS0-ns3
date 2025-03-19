@@ -35,14 +35,21 @@ void TCPSensorServer::OnDataReceived(ns3::Address from) {
         msg = ReadString(from, 8192);
         partialBytesReceived[from] += msg;
         
-        // Process all complete messages (terminated by null bytes)
-        size_t nullPos;
-        while ((nullPos = partialBytesReceived[from].find('\0')) != std::string::npos) {
-            std::string completeMessage = partialBytesReceived[from].substr(0, nullPos);
+        // Process all complete messages (terminated by > bytes)
+        size_t endPos;
+        while ((endPos = partialBytesReceived[from].find('>')) != std::string::npos) {
+            std::string completeMessage = partialBytesReceived[from].substr(0, endPos + 1);
+            
+            // Find and exclude start bytes until '<'
+            size_t startPos = completeMessage.find('<');
+            if (startPos != std::string::npos) {
+                completeMessage = completeMessage.substr(startPos);
+            }
+            
             std::cout << "Received from client " << from << " following msg: " << completeMessage << std::endl;
             
             // Remove processed message and its terminator
-            partialBytesReceived[from] = partialBytesReceived[from].substr(nullPos + 1);
+            partialBytesReceived[from] = partialBytesReceived[from].substr(endPos + 1);
         }
     } while (msg != "");
 }

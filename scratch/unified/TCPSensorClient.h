@@ -9,29 +9,23 @@
 
 class TCPSensorClient : public ns3::TcpClient {
 public:
-	TCPSensorClient();
-	virtual ~TCPSensorClient();
+  TCPSensorClient();
+  virtual ~TCPSensorClient();
 
-	static ns3::TypeId GetTypeId (void);
+  static ns3::TypeId GetTypeId(void);
 
 protected:
-	virtual void StartApplication(void);
-	virtual void StopApplication(void);
-	virtual void OnDataReceived();
+  virtual void StartApplication(void);
+  virtual void StopApplication(void);
+  virtual void OnDataReceived();
 
 private:
-	void Action();
-	void FlushQueuedMessages();
-	bool IsConnected() const;
+  void Action();
 
-	bool m_connected;
-	void ConnectionSucceeded(ns3::Ptr<ns3::Socket> socket);
-	void ConnectionClosed(ns3::Ptr<ns3::Socket> socket);
-
-	ns3::Time m_interval;
-	ns3::EventId actionEvent;
-
-	std::queue<std::string> m_messageQueue;
+  ns3::Time m_interval;
+  ns3::EventId actionEvent;
+  uint32_t m_id;
+  std::queue<std::string> m_queue;
 };
 
 #endif /* SCRATCH_APPLICATIONS_PINGPONG_TCPSensorClient_H_ */

@@ -726,30 +726,25 @@ void configureTCPSensorClients() {
     ObjectFactory factory;
     factory.SetTypeId(TCPSensorClient::GetTypeId());
 
-	factory.Set("Interval", TimeValue(MilliSeconds(100)));
     factory.Set("RemoteAddress", Ipv4AddressValue(apNodeInterface.GetAddress(0)));
     factory.Set("RemotePort", UintegerValue(84));
 
     Ptr<UniformRandomVariable> m_rv = CreateObject<UniformRandomVariable>();
 
-    double itterator = 0;
-    for (uint16_t i = 0; i < (totalNodes); i++) 
-    {
-        // Create the client application regardless of association status
-        Ptr<Application> app = factory.Create<TCPSensorClient>();
-        Ptr<TCPSensorClient> client = DynamicCast<TCPSensorClient>(app);
-        
-        wifiStaNode.Get(i)->AddApplication(app);
-        
-        ApplicationContainer clientApp;
-        clientApp.Add(app);
-        
-        clientApp.Start(Seconds(itterator * m_rv->GetValue(0.1, 0.2)));
-        clientApp.Stop(stopTime);
-        wireTCPClient(clientApp, i);
-        
-        itterator++;
-    }
+    for (uint16_t i = 0; i < totalNodes; i++) {
+		if (IsAssoc(i)) {
+			factory.Set("id", UintegerValue(i));  // Set each STA's ID to allow it to check its association status
+			factory.Set("Interval", TimeValue(MilliSeconds(100)));
+			Ptr<Application> tcpClient = factory.Create<TCPSensorClient>();
+			wifiStaNode.Get(i)->AddApplication(tcpClient);
+			ApplicationContainer clientApp(tcpClient);
+			wireTCPClient(clientApp, i);
+			clientApp.Start(MilliSeconds(0));
+			clientApp.Stop(stopTime);
+		} else {
+		std::cout << "Not Associated: " << (int)i << std::endl;
+		}
+	}
 }
 
 void wireTCPServer(ApplicationContainer serverApp) {
@@ -877,33 +872,50 @@ void PhyStateTrace(std::string context, Time start, Time duration,
 	}
 }
 
-// Scheduled function to move the AP in and out of range to test TCP queuing
-void MoveAP(Ptr<Node> apNode, bool& isOdd)
-{
-  // Get the mobility model of the node
-  Ptr<MobilityModel> mobility = apNode->GetObject<MobilityModel>();
-  
-  // If no mobility model is found, create and attach one
-  if (!mobility) {
-    mobility = CreateObject<ConstantPositionMobilityModel>();
-    apNode->AggregateObject(mobility);
-  }
-  
-  if (isOdd) {
-    // Move to (10,10,0) for odd intervals
-    mobility->SetPosition(Vector(1000.0, 1000.0, 0.0));
-    std::cout<<"Time " << Simulator::Now().GetMilliSeconds() << "ms: Moving AP to (1000,1000,0)"<<std::endl;
-  } else {
-    // Move to (0,0,0) for even intervals
-    mobility->SetPosition(Vector(0.0, 0.0, 0.0));
-   std::cout<<"Time " << Simulator::Now().GetMilliSeconds() << "ms: Moving AP to (0,0,0)"<<std::endl;
-  }
-  
-  // Toggle the isOdd flag for the next call
-  isOdd = !isOdd;
-  
-  // Schedule the next movement after 100ms
-  Simulator::Schedule(MilliSeconds(1000), &MoveAP, apNode, std::ref(isOdd));
+// Toggle the AP position between (0,0,0) and (1000,1000,0)
+void ToggleAPPosition() {
+	static bool toggle = false;
+	Ptr<MobilityModel> mob = wifiApNode.Get(0)->GetObject<MobilityModel>();
+	if (toggle) {
+		mob->SetPosition(Vector(1000, 1000, 0));
+		std::cout<<"AP moved to (1000,1000,0)"<<std::endl;
+	} else {
+		mob->SetPosition(Vector(0,0,0));
+		std::cout<<"AP moved to (0,0,0)"<<std::endl;
+	}
+	toggle = !toggle;
+	Simulator::Schedule(MilliSeconds(500), &ToggleAPPosition);
+}
+
+// Check association status for each station node based on distance to AP
+void CheckAssociations() {
+	// Get AP position
+	Ptr<MobilityModel> apMob = wifiApNode.Get(0)->GetObject<MobilityModel>();
+	Vector apPos = apMob->GetPosition();
+
+	// For each station, check distance and update association status
+	for (uint32_t i = 0; i < wifiStaNode.GetN(); i++) {
+		Ptr<MobilityModel> staMob = wifiStaNode.Get(i)->GetObject<MobilityModel>();
+		Vector staPos = staMob->GetPosition();
+		double dx = apPos.x - staPos.x;
+		double dy = apPos.y - staPos.y;
+		double distance = std::sqrt(dx * dx + dy * dy);
+		// Use a threshold (e.g. 100 units) to decide association
+		if (distance < 100) {
+		if (!IsAssoc(i)) {
+			// Trigger association event
+			assoc_vector[i]->SetAssoc("", Mac48Address());
+			std::cout<<"Station " << i << " associated (distance=" << distance << ")"<<std::endl;
+		}
+		} else {
+		if (IsAssoc(i)) {
+			// Trigger deassociation event
+			assoc_vector[i]->UnsetAssoc("", Mac48Address());
+			std::cout<<"Station " << i << " deassociated (distance=" << distance << ")"<<std::endl;
+		}
+		}
+	}
+	Simulator::Schedule(MilliSeconds(10), &CheckAssociations);
 }
 
 int main(int argc, char *argv[]) {
@@ -1011,17 +1023,17 @@ int main(int argc, char *argv[]) {
     }
 
 
-  for (uint32_t i = 0; i < gateways * gateways; i++)
-  {
-    //int perAxis = gateways;
-    //double dist = 5049 / perAxis;
-    //double x = dist * (i % perAxis);
-    //double y = dist * int(i / perAxis);
-    wifiApNode.Get(i)->GetObject<MobilityModel>()->SetPosition(Vector(0,0,0));
-  }
+	for (uint32_t i = 0; i < gateways * gateways; i++)
+	{
+		//int perAxis = gateways;
+		//double dist = 5049 / perAxis;
+		//double x = dist * (i % perAxis);
+		//double y = dist * int(i / perAxis);
+		wifiApNode.Get(i)->GetObject<MobilityModel>()->SetPosition(Vector(0,0,0));
+	}
 
-  bool isOdd = true;
-  Simulator::Schedule(MilliSeconds(5000), &MoveAP, wifiApNode.Get(0), std::ref(isOdd));
+  	Simulator::Schedule(MilliSeconds(1000), &ToggleAPPosition);
+	Simulator::Schedule(MilliSeconds(10), &CheckAssociations);
 
 	// *************
 	// CHANNEL 
