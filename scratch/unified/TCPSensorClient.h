@@ -25,8 +25,7 @@ private:
 	void Action();
 
 	ns3::Time m_interval;
-	uint16_t measurementSize = 0;
-	uint16_t id = 0;
+	uint16_t measurementSize = 100;
 	ns3::EventId actionEvent;
 
 };

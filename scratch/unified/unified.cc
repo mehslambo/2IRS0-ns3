@@ -722,36 +722,36 @@ void configureTCPSensorServer() {
 
 void configureTCPSensorClients() {
 
-	ObjectFactory factory;
-	factory.SetTypeId(TCPSensorClient::GetTypeId());
+    ObjectFactory factory;
+    factory.SetTypeId(TCPSensorClient::GetTypeId());
 
-	factory.Set("PacketSize", UintegerValue(packetSize));
-	factory.Set("MeasurementSize", UintegerValue(totalSize));
+    //factory.Set("PacketSize", UintegerValue(packetSize));
+    factory.Set("MeasurementSize", UintegerValue(packetSize));
 
-	factory.Set("RemoteAddress",
-			Ipv4AddressValue(apNodeInterface.GetAddress(0)));
-	factory.Set("RemotePort", UintegerValue(84));
+    factory.Set("RemoteAddress",
+            Ipv4AddressValue(apNodeInterface.GetAddress(0)));
+    factory.Set("RemotePort", UintegerValue(84));
 
-	Ptr<UniformRandomVariable> m_rv = CreateObject<UniformRandomVariable>();
+    Ptr<UniformRandomVariable> m_rv = CreateObject<UniformRandomVariable>();
 
-	double itterator = 0;
-	for (uint16_t i = 0; i < (totalNodes); i++) 
-	{
-          if (IsAssoc(i)) {
-		factory.Set("id", UintegerValue(i));
-		factory.Set("Interval", TimeValue(Minutes(i % 60)));
-		Ptr<Application> tcpClient = factory.Create<TCPSensorClient>();
-		wifiStaNode.Get(i)->AddApplication(tcpClient);
-		auto clientApp = ApplicationContainer(tcpClient);
-		wireTCPClient(clientApp, i);
+    double itterator = 0;
+    for (uint16_t i = 0; i < (totalNodes); i++) 
+    {
+      if (IsAssoc(i)) {
+        //factory.Set("id", UintegerValue(i));
+        factory.Set("Interval", TimeValue(MilliSeconds(10)));
+        Ptr<Application> tcpClient = factory.Create<TCPSensorClient>();
+        wifiStaNode.Get(i)->AddApplication(tcpClient);
+        auto clientApp = ApplicationContainer(tcpClient);
+        wireTCPClient(clientApp, i);
 
-		clientApp.Start(MilliSeconds(0));
-		clientApp.Stop(stopTime);
-		itterator += 0.25;
-          } else {
-            cout << "Not Associated: " << (int)i << endl;
-          }
-	}
+        clientApp.Start(MilliSeconds(0));
+        clientApp.Stop(stopTime);
+        itterator += 0.25;
+      } else {
+        cout << "Not Associated: " << (int)i << endl;
+      }
+    }
 }
 
 void wireTCPServer(ApplicationContainer serverApp) {

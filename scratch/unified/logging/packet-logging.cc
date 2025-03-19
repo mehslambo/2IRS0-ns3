@@ -14,14 +14,14 @@
 using namespace ns3;
 
 const std::map<std::string, std::string> PacketLogging::CSV_HEADERS = {
-    {"MonitorSnifferRx", "Time;SnifferNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry;ChannelFreqMHz;ChannelNumber;Rate;IsShortPreamble;Mode;Retries;Ness;Nss;IsShortGuardInterval;IsStbc;TxPowerLevel;NoiseDbm;SignalDbm"},
-    {"MonitorSnifferTx", "Time;SnifferNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry;ChannelFreqMHz;ChannelNumber;Rate;IsShortPreamble;Mode;Retries;Ness;Nss;IsShortGuardInterval;IsStbc;TxPowerLevel"},
-    {"PhyTxBegin", "Time;SnifferNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"},
-    {"PhyTxEnd", "Time;SnifferNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"},
-    {"PhyTxDrop", "Time;SnifferNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"},
-    {"PhyRxBegin", "Time;SnifferNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"},
-    {"PhyRxEnd", "Time;SnifferNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"},
-    {"PhyRxDrop", "Time;SnifferNodeId;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;TransmitterMac;TransmitterNodeId;BSSID;BSSIDNodeId;DestinationMac;DestinationNodeId;SourceMac;SourceNodeId;IsRetry"}
+    {"MonitorSnifferRx", "Time;SnifferNodeId;SnifferNodeX;SnifferNodeY;SnifferNodeZ;SnifferNodeType;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;ReceiverNodeX;ReceiverNodeY;ReceiverNodeZ;ReceiverNodeType;TransmitterMac;TransmitterNodeId;TransmitterNodeX;TransmitterNodeY;TransmitterNodeZ;TransmitterNodeType;BSSID;BSSIDNodeId;BSSIDNodeX;BSSIDNodeY;BSSIDNodeZ;BSSIDNodeType;DestinationMac;DestinationNodeId;DestinationNodeX;DestinationNodeY;DestinationNodeZ;DestinationNodeType;SourceMac;SourceNodeId;SourceNodeX;SourceNodeY;SourceNodeZ;SourceNodeType;IsRetry;ChannelFreqMHz;ChannelNumber;Rate;IsShortPreamble;Mode;Retries;Ness;Nss;IsShortGuardInterval;IsStbc;TxPowerLevel;NoiseDbm;SignalDbm"},
+    {"MonitorSnifferTx", "Time;SnifferNodeId;SnifferNodeX;SnifferNodeY;SnifferNodeZ;SnifferNodeType;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;ReceiverNodeX;ReceiverNodeY;ReceiverNodeZ;ReceiverNodeType;TransmitterMac;TransmitterNodeId;TransmitterNodeX;TransmitterNodeY;TransmitterNodeZ;TransmitterNodeType;BSSID;BSSIDNodeId;BSSIDNodeX;BSSIDNodeY;BSSIDNodeZ;BSSIDNodeType;DestinationMac;DestinationNodeId;DestinationNodeX;DestinationNodeY;DestinationNodeZ;DestinationNodeType;SourceMac;SourceNodeId;SourceNodeX;SourceNodeY;SourceNodeZ;SourceNodeType;IsRetry;ChannelFreqMHz;ChannelNumber;Rate;IsShortPreamble;Mode;Retries;Ness;Nss;IsShortGuardInterval;IsStbc;TxPowerLevel"},
+    {"PhyTxBegin", "Time;SnifferNodeId;SnifferNodeX;SnifferNodeY;SnifferNodeZ;SnifferNodeType;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;ReceiverNodeX;ReceiverNodeY;ReceiverNodeZ;ReceiverNodeType;TransmitterMac;TransmitterNodeId;TransmitterNodeX;TransmitterNodeY;TransmitterNodeZ;TransmitterNodeType;BSSID;BSSIDNodeId;BSSIDNodeX;BSSIDNodeY;BSSIDNodeZ;BSSIDNodeType;DestinationMac;DestinationNodeId;DestinationNodeX;DestinationNodeY;DestinationNodeZ;DestinationNodeType;SourceMac;SourceNodeId;SourceNodeX;SourceNodeY;SourceNodeZ;SourceNodeType;IsRetry"},
+    {"PhyTxEnd", "Time;SnifferNodeId;SnifferNodeX;SnifferNodeY;SnifferNodeZ;SnifferNodeType;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;ReceiverNodeX;ReceiverNodeY;ReceiverNodeZ;ReceiverNodeType;TransmitterMac;TransmitterNodeId;TransmitterNodeX;TransmitterNodeY;TransmitterNodeZ;TransmitterNodeType;BSSID;BSSIDNodeId;BSSIDNodeX;BSSIDNodeY;BSSIDNodeZ;BSSIDNodeType;DestinationMac;DestinationNodeId;DestinationNodeX;DestinationNodeY;DestinationNodeZ;DestinationNodeType;SourceMac;SourceNodeId;SourceNodeX;SourceNodeY;SourceNodeZ;SourceNodeType;IsRetry"},
+    {"PhyTxDropWithReason", "Time;SnifferNodeId;SnifferNodeX;SnifferNodeY;SnifferNodeZ;SnifferNodeType;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;ReceiverNodeX;ReceiverNodeY;ReceiverNodeZ;ReceiverNodeType;TransmitterMac;TransmitterNodeId;TransmitterNodeX;TransmitterNodeY;TransmitterNodeZ;TransmitterNodeType;BSSID;BSSIDNodeId;BSSIDNodeX;BSSIDNodeY;BSSIDNodeZ;BSSIDNodeType;DestinationMac;DestinationNodeId;DestinationNodeX;DestinationNodeY;DestinationNodeZ;DestinationNodeType;SourceMac;SourceNodeId;SourceNodeX;SourceNodeY;SourceNodeZ;SourceNodeType;IsRetry;DropReason"},
+    {"PhyRxBegin", "Time;SnifferNodeId;SnifferNodeX;SnifferNodeY;SnifferNodeZ;SnifferNodeType;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;ReceiverNodeX;ReceiverNodeY;ReceiverNodeZ;ReceiverNodeType;TransmitterMac;TransmitterNodeId;TransmitterNodeX;TransmitterNodeY;TransmitterNodeZ;TransmitterNodeType;BSSID;BSSIDNodeId;BSSIDNodeX;BSSIDNodeY;BSSIDNodeZ;BSSIDNodeType;DestinationMac;DestinationNodeId;DestinationNodeX;DestinationNodeY;DestinationNodeZ;DestinationNodeType;SourceMac;SourceNodeId;SourceNodeX;SourceNodeY;SourceNodeZ;SourceNodeType;IsRetry"},
+    {"PhyRxEnd", "Time;SnifferNodeId;SnifferNodeX;SnifferNodeY;SnifferNodeZ;SnifferNodeType;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;ReceiverNodeX;ReceiverNodeY;ReceiverNodeZ;ReceiverNodeType;TransmitterMac;TransmitterNodeId;TransmitterNodeX;TransmitterNodeY;TransmitterNodeZ;TransmitterNodeType;BSSID;BSSIDNodeId;BSSIDNodeX;BSSIDNodeY;BSSIDNodeZ;BSSIDNodeType;DestinationMac;DestinationNodeId;DestinationNodeX;DestinationNodeY;DestinationNodeZ;DestinationNodeType;SourceMac;SourceNodeId;SourceNodeX;SourceNodeY;SourceNodeZ;SourceNodeType;IsRetry"},
+    {"PhyRxDropWithReason", "Time;SnifferNodeId;SnifferNodeX;SnifferNodeY;SnifferNodeZ;SnifferNodeType;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;ReceiverNodeX;ReceiverNodeY;ReceiverNodeZ;ReceiverNodeType;TransmitterMac;TransmitterNodeId;TransmitterNodeX;TransmitterNodeY;TransmitterNodeZ;TransmitterNodeType;BSSID;BSSIDNodeId;BSSIDNodeX;BSSIDNodeY;BSSIDNodeZ;BSSIDNodeType;DestinationMac;DestinationNodeId;DestinationNodeX;DestinationNodeY;DestinationNodeZ;DestinationNodeType;SourceMac;SourceNodeId;SourceNodeX;SourceNodeY;SourceNodeZ;SourceNodeType;IsRetry;DropReason"}
 };
 
 PacketLogging::PacketLogging(const std::string& scenarioName, 
@@ -43,8 +43,8 @@ PacketLogging::PacketLogging(const std::string& scenarioName,
     // Open all required log files
     std::vector<std::string> eventTypes = {
         "MonitorSnifferRx", "MonitorSnifferTx", 
-        "PhyTxBegin", "PhyTxEnd", "PhyTxDrop",
-        "PhyRxBegin", "PhyRxEnd", "PhyRxDrop"
+        "PhyTxBegin", "PhyTxEnd", "PhyTxDropWithReason",
+        "PhyRxBegin", "PhyRxEnd", "PhyRxDropWithReason"
     };
 
     for (const auto& eventType : eventTypes) {
@@ -63,17 +63,17 @@ void PacketLogging::EnableLogging()
 {
     // Connect all logging callbacks
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyTxBegin",
-        MakeCallback(&PacketLogging::PhyTxRxBeginDropEndCallback, this));
+        MakeCallback(&PacketLogging::PhyTxRxBeginEndCallback, this));
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyTxEnd",
-        MakeCallback(&PacketLogging::PhyTxRxBeginDropEndCallback, this));
-    Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyTxDrop",
-        MakeCallback(&PacketLogging::PhyTxRxBeginDropEndCallback, this));
+        MakeCallback(&PacketLogging::PhyTxRxBeginEndCallback, this));
+    Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyTxDropWithReason",
+        MakeCallback(&PacketLogging::PhyTxRxDropCallback, this));
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyRxBegin",
-        MakeCallback(&PacketLogging::PhyTxRxBeginDropEndCallback, this));
+        MakeCallback(&PacketLogging::PhyTxRxBeginEndCallback, this));
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyRxEnd",
-        MakeCallback(&PacketLogging::PhyTxRxBeginDropEndCallback, this));
-    Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyRxDrop",
-        MakeCallback(&PacketLogging::PhyTxRxBeginDropEndCallback, this));
+        MakeCallback(&PacketLogging::PhyTxRxBeginEndCallback, this));
+    Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyRxDropWithReason",
+        MakeCallback(&PacketLogging::PhyTxRxDropCallback, this));
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/MonitorSnifferTx",
         MakeCallback(&PacketLogging::MonitorSnifferTxCallback, this));
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/MonitorSnifferRx",
@@ -102,6 +102,60 @@ uint32_t PacketLogging::GetNodeIdFromMacAddress(const Mac48Address& addr) {
     }
     
     return -1; // Return -1 if not found
+}
+
+std::string PacketLogging::GetNodePos(uint32_t nodeId) {
+    // If nodeId is invalid, return placeholder values
+    if (nodeId == (uint32_t)-1) {
+        return "?;?;?;?";
+    }
+
+    // Find the node
+    Ptr<Node> node = nullptr;
+    for (uint32_t i = 0; i < m_staNodes.GetN(); i++) {
+        if (m_staNodes.Get(i)->GetId() == nodeId) {
+            node = m_staNodes.Get(i);
+            break;
+        }
+    }
+    
+    if (!node) {
+        for (uint32_t i = 0; i < m_apNodes.GetN(); i++) {
+            if (m_apNodes.Get(i)->GetId() == nodeId) {
+                node = m_apNodes.Get(i);
+                break;
+            }
+        }
+    }
+    
+    if (!node) {
+        return std::to_string(nodeId) + "?;?;?;?";
+    }
+
+    // Get position information
+    Ptr<MobilityModel> mobility = node->GetObject<MobilityModel>();
+    Vector position = mobility ? mobility->GetPosition() : Vector(0, 0, 0);
+    
+    // Determine if node is AP or STA
+    std::string nodeType = "STA";  // Default to STA
+    for (uint32_t i = 0; i < node->GetNDevices(); ++i) {
+        Ptr<WifiNetDevice> wifiDev = node->GetDevice(i)->GetObject<WifiNetDevice>();
+        if (wifiDev) {
+            Ptr<ApWifiMac> apMac = wifiDev->GetMac()->GetObject<ApWifiMac>();
+            if (apMac) {
+                nodeType = "AP";
+                break;
+            }
+        }
+    }
+    
+    std::stringstream ss;
+    ss << position.x << ";"
+       << position.y << ";"
+       << position.z << ";"
+       << nodeType;
+    
+    return ss.str();
 }
 
 MacAddresses PacketLogging::ExtractMacAddresses(const WifiMacHeader& header) {
@@ -155,14 +209,19 @@ std::string PacketLogging::PacketToCsv(Ptr<const Packet> packet){
 	   << packet->GetSize() << ";" 
 	   << macs.receiver << ";"
 	   << (GetNodeIdFromMacAddress(macs.receiver) == ((uint32_t) -1) ? "?" : std::to_string(GetNodeIdFromMacAddress(macs.receiver))) << ";"
+       << GetNodePos(GetNodeIdFromMacAddress(macs.receiver)) << ";"
 	   << macs.transmitter << ";"
 	   << (GetNodeIdFromMacAddress(macs.transmitter) == ((uint32_t) -1) ? "?" : std::to_string(GetNodeIdFromMacAddress(macs.transmitter))) << ";"
-	   << macs.bssid << ";"
+       << GetNodePos(GetNodeIdFromMacAddress(macs.transmitter)) << ";"
+       << macs.bssid << ";"
 	   << (GetNodeIdFromMacAddress(macs.bssid) == ((uint32_t) -1) ? "?" : std::to_string(GetNodeIdFromMacAddress(macs.bssid))) << ";"
-	   << macs.destination << ";"
+       << GetNodePos(GetNodeIdFromMacAddress(macs.bssid)) << ";"
+       << macs.destination << ";"
 	   << (GetNodeIdFromMacAddress(macs.destination) == ((uint32_t) -1) ? "?" : std::to_string(GetNodeIdFromMacAddress(macs.destination))) << ";"
-	   << macs.source << ";"
+       << GetNodePos(GetNodeIdFromMacAddress(macs.destination)) << ";"
+       << macs.source << ";"
 	   << (GetNodeIdFromMacAddress(macs.source) == ((uint32_t) -1) ? "?" : std::to_string(GetNodeIdFromMacAddress(macs.source))) << ";"
+       << GetNodePos(GetNodeIdFromMacAddress(macs.source)) << ";"
        << (header.IsRetry() ? "true" : "false");
 
 	return ss.str();
@@ -204,6 +263,7 @@ void PacketLogging::MonitorSnifferRxCallback(std::string context, Ptr<const Pack
     // Write CSV line with all packet information
     logFile << Simulator::Now() << ";"
             << snifferNodeId << ";"
+            << GetNodePos(snifferNodeId) << ";"
             << PacketToCsv(packet) << ";" 
             << channelFreqMhz << ";"
             << channelNumber << ";"
@@ -256,6 +316,7 @@ void PacketLogging::MonitorSnifferTxCallback(std::string context, Ptr<const Pack
     // Write CSV line with all packet information
     logFile << Simulator::Now() << ";"
             << snifferNodeId << ";"
+            << GetNodePos(snifferNodeId) << ";"
 			<< PacketToCsv(packet) << ";"
 			<< channelFreqMhz << ";"
             << channelNumber << ";"
@@ -270,7 +331,7 @@ void PacketLogging::MonitorSnifferTxCallback(std::string context, Ptr<const Pack
             << txPowerLevel << std::endl;
 }
 
-void PacketLogging::PhyTxRxBeginDropEndCallback(std::string context, Ptr<const Packet> packet){
+void PacketLogging::PhyTxRxBeginEndCallback(std::string context, Ptr<const Packet> packet){
     std::string::size_type traceSourcePos = context.find_last_of("/");
     std::string traceSource = context.substr(traceSourcePos + 1);
 
@@ -297,7 +358,89 @@ void PacketLogging::PhyTxRxBeginDropEndCallback(std::string context, Ptr<const P
 
 	logFile << Simulator::Now() << ";"
             << snifferNodeId << ";"
+            << GetNodePos(snifferNodeId) << ";"
 			<< PacketToCsv(packet) << std::endl;
+}
+
+void PacketLogging::PhyTxRxDropCallback(std::string context, Ptr<const Packet> packet, DropReason reason){
+    std::string::size_type traceSourcePos = context.find_last_of("/");
+    std::string traceSource = context.substr(traceSourcePos + 1);
+
+    // Get sniffer node ID from context
+    std::string::size_type pos = context.find("/NodeList/");
+    std::string nodeStr = context.substr(pos);
+    uint32_t snifferNodeId;
+    sscanf(nodeStr.c_str(), "/NodeList/%u/", &snifferNodeId);
+
+    // Extract MAC header for source/destination info
+    WifiMacHeader header;
+    packet->PeekHeader(header);
+    
+    // Check if sniffer node ID matches source or destination node ID
+    MacAddresses macs = ExtractMacAddresses(header);
+    if (snifferNodeId != GetNodeIdFromMacAddress(macs.destination) && snifferNodeId != GetNodeIdFromMacAddress(macs.source))
+        return;
+
+    auto& logFile = m_logFiles[traceSource];
+    if(!logFile.is_open()) {
+        std::cout << "Log file for " << traceSource << " is not open" << std::endl;
+        return;
+    }
+
+    std::string reasonString;
+    switch (reason) {
+        case DropReason::Unknown:
+            reasonString = "Unknown";
+            break;
+        case DropReason::PhyInSleepMode:
+            reasonString = "PhyInSleepMode";
+            break;
+        case DropReason::PhyNotEnoughSignalPower:
+            reasonString = "PhyNotEnoughSignalPower";
+            break;
+        case DropReason::PhyUnsupportedMode:
+            reasonString = "PhyUnsupportedMode";
+            break;
+        case DropReason::PhyPreampleHeaderReceptionFailed:
+            reasonString = "PhyPreampleHeaderReceptionFailed";
+            break;
+        case DropReason::PhyRxDuringChannelSwitching:
+            reasonString = "PhyRxDuringChannelSwitching";
+            break;
+        case DropReason::PhyAlreadyReceiving:
+            reasonString = "PhyAlreadyReceiving";
+            break;
+        case DropReason::PhyAlreadyTransmitting:
+            reasonString = "PhyAlreadyTransmitting";
+            break;
+        case DropReason::PhyPlcpReceptionFailed:
+            reasonString = "PhyPlcpReceptionFailed";
+            break;
+        case DropReason::MacNotForAP:
+            reasonString = "MacNotForAP";
+            break;
+        case DropReason::MacAPToAPFrame:
+            reasonString = "MacAPToAPFrame";
+            break;
+        case DropReason::MacQueueDelayExceeded:
+            reasonString = "MacQueueDelayExceeded";
+            break;
+        case DropReason::MacQueueSizeExceeded:
+            reasonString = "MacQueueSizeExceeded";
+            break;
+        case DropReason::TCPTxBufferExceeded:
+            reasonString = "TCPTxBufferExceeded";
+            break;
+        default:
+            reasonString = "UnknownReason";
+            break;
+    }
+
+    logFile << Simulator::Now() << ";"
+            << snifferNodeId << ";"
+            << GetNodePos(snifferNodeId) << ";"
+            << PacketToCsv(packet) << ";"
+            << reasonString << std::endl;
 }
 
 void PacketLogging::WriteHeaders()

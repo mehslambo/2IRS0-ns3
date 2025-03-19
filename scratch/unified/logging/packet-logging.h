@@ -49,9 +49,12 @@ private:
         uint32_t rate, bool isShortPreamble,
         WifiTxVector txVector);
 
-    void PhyTxRxBeginDropEndCallback(std::string context, Ptr<const Packet> packet);
+    void PhyTxRxBeginEndCallback(std::string context, Ptr<const Packet> packet);
+
+    void PhyTxRxDropCallback(std::string context, Ptr<const Packet> packet, DropReason reason);
 
     uint32_t GetNodeIdFromMacAddress(const Mac48Address& addr);
+    std::string GetNodePos(uint32_t nodeId);
     std::string PacketToCsv(Ptr<const Packet> packet);
     std::string GetLogFilePath(const std::string& eventType) const;
 

@@ -4,16 +4,17 @@ import os
 import subprocess
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
+import numpy as np
 
 scenarioName = "unified"
 argsMatrix = {
     "sensors" : [1],
     "nodeSpacing" : [1],
-    "nodeXOffset" : [x / 100 for x in range(0, 200)],
+    "nodeXOffset" : list(np.arange(0.0, 1.5, 0.01)) + list(np.arange(1.5, 1.9, 0.003)) + list(np.arange(1.9, 2.0, 0.01)),
     "propagationModel" : ["air", "freshwater"],
-    "stopTime" : [120], # seconds
-    "packetSize" : [512],
-    "totalSize" : [512*24]
+    "stopTime" : [4], # seconds
+    "packetSize" : [4096],  # I recommend > 150 bytes to help with filtering ACK/handshakes out
+    #"totalSize" : [512]
 }
 
 scenarioCommands = [f'{scenarioName}']
