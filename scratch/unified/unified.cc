@@ -723,15 +723,11 @@ void configureTCPSensorServer() {
 }
 
 void configureTCPSensorClients() {
-
     ObjectFactory factory;
     factory.SetTypeId(TCPSensorClient::GetTypeId());
 
-    //factory.Set("PacketSize", UintegerValue(packetSize));
-    factory.Set("MeasurementSize", UintegerValue(packetSize));
-
-    factory.Set("RemoteAddress",
-            Ipv4AddressValue(apNodeInterface.GetAddress(0)));
+	factory.Set("Interval", TimeValue(MilliSeconds(100)));
+    factory.Set("RemoteAddress", Ipv4AddressValue(apNodeInterface.GetAddress(0)));
     factory.Set("RemotePort", UintegerValue(84));
 
     Ptr<UniformRandomVariable> m_rv = CreateObject<UniformRandomVariable>();
@@ -739,20 +735,20 @@ void configureTCPSensorClients() {
     double itterator = 0;
     for (uint16_t i = 0; i < (totalNodes); i++) 
     {
-      if (IsAssoc(i)) {
-        //factory.Set("id", UintegerValue(i));
-        factory.Set("Interval", TimeValue(MilliSeconds(250)));
-        Ptr<Application> tcpClient = factory.Create<TCPSensorClient>();
-        wifiStaNode.Get(i)->AddApplication(tcpClient);
-        auto clientApp = ApplicationContainer(tcpClient);
-        wireTCPClient(clientApp, i);
-
-        clientApp.Start(MilliSeconds(0));
+        // Create the client application regardless of association status
+        Ptr<Application> app = factory.Create<TCPSensorClient>();
+        Ptr<TCPSensorClient> client = DynamicCast<TCPSensorClient>(app);
+        
+        wifiStaNode.Get(i)->AddApplication(app);
+        
+        ApplicationContainer clientApp;
+        clientApp.Add(app);
+        
+        clientApp.Start(Seconds(itterator * m_rv->GetValue(0.1, 0.2)));
         clientApp.Stop(stopTime);
-        itterator += 0.25;
-      } else {
-        cout << "Not Associated: " << (int)i << endl;
-      }
+        wireTCPClient(clientApp, i);
+        
+        itterator++;
     }
 }
 
@@ -881,7 +877,34 @@ void PhyStateTrace(std::string context, Time start, Time duration,
 	}
 }
 
-
+// Scheduled function to move the AP in and out of range to test TCP queuing
+void MoveAP(Ptr<Node> apNode, bool& isOdd)
+{
+  // Get the mobility model of the node
+  Ptr<MobilityModel> mobility = apNode->GetObject<MobilityModel>();
+  
+  // If no mobility model is found, create and attach one
+  if (!mobility) {
+    mobility = CreateObject<ConstantPositionMobilityModel>();
+    apNode->AggregateObject(mobility);
+  }
+  
+  if (isOdd) {
+    // Move to (10,10,0) for odd intervals
+    mobility->SetPosition(Vector(1000.0, 1000.0, 0.0));
+    std::cout<<"Time " << Simulator::Now().GetMilliSeconds() << "ms: Moving AP to (1000,1000,0)"<<std::endl;
+  } else {
+    // Move to (0,0,0) for even intervals
+    mobility->SetPosition(Vector(0.0, 0.0, 0.0));
+   std::cout<<"Time " << Simulator::Now().GetMilliSeconds() << "ms: Moving AP to (0,0,0)"<<std::endl;
+  }
+  
+  // Toggle the isOdd flag for the next call
+  isOdd = !isOdd;
+  
+  // Schedule the next movement after 100ms
+  Simulator::Schedule(MilliSeconds(1000), &MoveAP, apNode, std::ref(isOdd));
+}
 
 int main(int argc, char *argv[]) {
 	//LogComponentEnable("TCPSensorServer", LOG_ALL);
@@ -997,6 +1020,8 @@ int main(int argc, char *argv[]) {
     wifiApNode.Get(i)->GetObject<MobilityModel>()->SetPosition(Vector(0,0,0));
   }
 
+  bool isOdd = true;
+  Simulator::Schedule(MilliSeconds(5000), &MoveAP, wifiApNode.Get(0), std::ref(isOdd));
 
 	// *************
 	// CHANNEL 

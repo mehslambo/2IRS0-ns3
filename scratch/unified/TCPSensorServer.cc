@@ -30,23 +30,21 @@ ns3::TypeId TCPSensorServer::GetTypeId(void) {
 }
 
 void TCPSensorServer::OnDataReceived(ns3::Address from) {
-	std::cout << "[";
-      std::cout << Simulator::Now().GetMilliSeconds();
-      std::cout << "] " ;
-      std::cout << from;
-      std::cout << " Received" << std::endl;
-
-
-	std::string msg;
-	do {
-		 msg = ReadString(from, 4096);
-	if(partialBytesReceived.find(from) == partialBytesReceived.end())
-		partialBytesReceived[from] = "";
-	else
-		partialBytesReceived[from] += msg;
-	} while(msg != "");
-
-	NS_LOG_INFO("received from client " << from << ", current size: " << partialBytesReceived[from].size());
+    std::string msg;
+    do {
+        msg = ReadString(from, 8192);
+        partialBytesReceived[from] += msg;
+        
+        // Process all complete messages (terminated by null bytes)
+        size_t nullPos;
+        while ((nullPos = partialBytesReceived[from].find('\0')) != std::string::npos) {
+            std::string completeMessage = partialBytesReceived[from].substr(0, nullPos);
+            std::cout << "Received from client " << from << " following msg: " << completeMessage << std::endl;
+            
+            // Remove processed message and its terminator
+            partialBytesReceived[from] = partialBytesReceived[from].substr(nullPos + 1);
+        }
+    } while (msg != "");
 }
 
 

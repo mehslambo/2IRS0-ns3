@@ -101,6 +101,9 @@ protected:
   std::string ReadString(int size);
   void WriteString(std::string, bool flush);
 
+  
+  Ptr<Socket> m_socket;
+
 private:
 
   virtual void ReceivePacket (Ptr<Socket> socket);
@@ -128,7 +131,6 @@ private:
   uint64_t m_bytesSent;
   uint64_t m_bytesRecv;
 
-  Ptr<Socket> m_socket;
   Ipv4Address m_peerAddress;
   uint16_t m_peerPort;
 
