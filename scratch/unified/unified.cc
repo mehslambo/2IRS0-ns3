@@ -39,6 +39,7 @@
 #include "logging/position-logging.cc"
 #include "logging/power-logging.h"
 #include "logging/power-logging.cc"
+#include "WaypointController.cc"
 #include <cstring>
 #include <string.h>
 #include <cerrno>
@@ -58,19 +59,23 @@ Statistics stats;
 // SIMULATION PARAMS
 // ******
 
-Time stopTime = Hours(2);
-
 uint32_t gateways = 1;
 uint32_t totalNodes = 200;
-double nodeSpacing = 0.01; // 1cm
-double depth = 0.01; // 1cm
-double nodeXOffset = 0.0; // 0cm
+double nodeXOffset = 0; // 0cm
+double nodeYOffset = 0;
+double nodeZOffset = -1;
+double nodeXSpacing = 0.1;
+double nodeYSpacing = 0.1;
+double nodeZSpacing = 0.0;
+int nodeXCount = 20;
+int nodeYCount = 10;
+int nodeZCount = 1;
+double uavSpeed = 0.1; // m/s
+double uavZOffset = 0;
 
 std::string propagationModel = "air"; // Valid values are "air" and "freshwater"
 
-uint32_t packetSize = 1;
-int32_t totalSize = 1;
-
+Time stopTime = Hours(2);
 uint32_t simTime = 3600;
 uint32_t timeOut = 10;
 
@@ -379,8 +384,7 @@ void AssocTimeoutStartSending()
 }
 
 void onSTAAssociated(int i) {
-	cout << "Node " << std::to_string(i) << " is associated and has aid "
-			<< nodes[i]->aId << endl;
+	cout << "Node " << std::to_string(i) << " is associated and has aid " << nodes[i]->aId << endl;
 
 	for (uint32_t k = 0; k < config.rps.rpsset.size(); k++) {
 		for (uint32_t j = 0; j < config.rps.rpsset[k]->GetNumberOfRawGroups(); j++) {
@@ -927,12 +931,17 @@ int main(int argc, char *argv[]) {
 
 	CommandLine cmd;
 	cmd.AddValue("sensors", "Number of sensors", totalNodes);
-	cmd.AddValue("packetSize", "Size of sensor packet", packetSize);
-	cmd.AddValue("totalSize", "Total bytes to be send", totalSize);
-	// cmd.AddValue("areaSize", "Length of side of the area", areaSize);
-	cmd.AddValue("nodeSpacing", "Spacing between nodes", nodeSpacing);
-	cmd.AddValue("depth", "Depth underwater",depth);
 	cmd.AddValue("nodeXOffset", "Offset of the nodes in the x axis", nodeXOffset);
+	cmd.AddValue("nodeYOffset", "Offset of the nodes in the y axis", nodeYOffset);
+	cmd.AddValue("nodeZOffset", "Offset of the nodes in the z axis", nodeZOffset);
+	cmd.AddValue("nodeXSpacing", "Spacing of the nodes in the x axis", nodeXSpacing);
+	cmd.AddValue("nodeYSpacing", "Spacing of the nodes in the y axis", nodeYSpacing);
+	cmd.AddValue("nodeZSpacing", "Spacing of the nodes in the z axis", nodeZSpacing);
+	cmd.AddValue("nodeXCount", "Number of nodes in the x axis", nodeXCount);
+	cmd.AddValue("nodeYCount", "Number of nodes in the y axis", nodeYCount);
+	cmd.AddValue("nodeZCount", "Number of nodes in the z axis", nodeZCount);
+	cmd.AddValue("uavSpeed", "The speed of the UAV (in m/s)", uavSpeed);
+	cmd.AddValue("uavZOffset", "The depth at which the UAV operates at (should be -)", uavZOffset);
 	cmd.AddValue("stopTime", "Simulation time in seconds", simTime);
 	cmd.AddValue("timeOut", "Association timeout in seconds", timeOut);
 	cmd.AddValue("propagationModel", "Propagation model (air/freshwater)", propagationModel);
@@ -940,6 +949,22 @@ int main(int argc, char *argv[]) {
 	// CommandLine arguments are processed by Configuration.
 
 	config = Configuration(&cmd, argc, argv);
+	totalNodes = nodeXCount * nodeYCount * nodeZCount + gateways * gateways;
+
+	std::ostringstream argStream;
+	for (int i = 1; i < argc; i++) { // Skip argv[0] (program name)
+		if (i > 1) argStream << "_"; // Add space between arguments
+		
+		// Sanitize the string to make it suitable for filenames
+		std::string arg = argv[i];
+		std::string cleanArg;
+		for (char c : arg) {
+			if (c != '-')
+				cleanArg += c;
+		}
+		
+		argStream << cleanArg;
+	}
 
 	stopTime = Seconds(simTime);
 	config.rps = configureRAW(config.rps, config.RAWConfigFile);
@@ -978,7 +1003,7 @@ int main(int argc, char *argv[]) {
 
 	// Create a string with the scenario's name to be used in the log files
 	std::stringstream scenarioLogName;
-	scenarioLogName << "unified/" << propagationModel << "/" << totalNodes << "_sensors__" << nodeSpacing << "_nodeSpacing__" << nodeXOffset << "_nodeXOffset__" << depth << "_depth";
+	scenarioLogName << "unified/" << propagationModel << "/" << argStream.str();
 
 	wifiStaNode.Create(totalNodes);
 	wifiApNode.Create(gateways * gateways);
@@ -991,48 +1016,42 @@ int main(int argc, char *argv[]) {
 	mobilitySta.SetMobilityModel("ns3::ConstantPositionMobilityModel");
 	mobilitySta.Install(wifiStaNode);
 
-
-
 	MobilityHelper mobilityAp;
-	mobilityAp.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+	mobilityAp.SetMobilityModel("ns3::WaypointMobilityModel");
 	mobilityAp.Install(wifiApNode);
 
     // Add position logging
-    PositionLogging posLogger(scenarioLogName.str());
+    PositionLogging posLogger(scenarioLogName.str(), MilliSeconds(500));
     posLogger.EnableLogging();
 
-	// Make it so that nodes are at a certain height > 0
-	// RV: the nodes are assigned to certain RAW groups and slots.
-	//     the location of nodes might affect that assignment.
-	//     that is, RAW groups could be used to avoid hidden node issues.
-  int counter = 0;
-  for (NodeContainer::Iterator j = wifiStaNode.Begin (); j != wifiStaNode.End (); ++j)
-    {
-      Ptr<MobilityModel> mobility = (*j)->GetObject<MobilityModel> ();
-      double x = nodeXOffset + nodeSpacing * counter;
+	// Position all STAs in a zig-zag pattern
+	std::vector<Vector> uavWaypoints = {};
 
-      Vector position = mobility->GetPosition ();
-      position.x = x;
-      position.y = 0;
-      position.z = -(depth);
-      mobility->SetPosition (position);
-      
-      counter++;
+	for (int i = 0; i < nodeXCount; i++) {
+        bool reverseY = (i % 2 != 0);
+        for (int j = reverseY ? nodeYCount - 1 : 0; reverseY ? j >= 0 : j < nodeYCount; reverseY ? j-- : j++) {
+            bool reverseZ = (j % 2 != 0);
+            for (int k = reverseZ ? nodeZCount - 1 : 0; reverseZ ? k >= 0 : k < nodeZCount; reverseZ ? k-- : k++) {
+				Ptr<MobilityModel> mob = wifiStaNode.Get(uavWaypoints.size())->GetObject<MobilityModel>();
+		
+				// Create a zig-zag pattern to optimize the UAV's path
+				double x = nodeXOffset + i * nodeXSpacing;
+                double y = nodeYOffset + j * nodeYSpacing;
+                double z = nodeZOffset + k * nodeZSpacing;
 
-	  // Log to 
+				// Set position for current node
+				mob->SetPosition(Vector(x, y, z));
+				
+				// Add waypoint for the UAV
+				uavWaypoints.push_back(Vector(x, y, uavZOffset));
+            }
+        }
     }
 
+	// Create the waypoint controller
+	WaypointController controller(wifiApNode.Get(0), uavWaypoints, uavSpeed);
 
-	for (uint32_t i = 0; i < gateways * gateways; i++)
-	{
-		//int perAxis = gateways;
-		//double dist = 5049 / perAxis;
-		//double x = dist * (i % perAxis);
-		//double y = dist * int(i / perAxis);
-		wifiApNode.Get(i)->GetObject<MobilityModel>()->SetPosition(Vector(0,0,0));
-	}
-
-  	Simulator::Schedule(MilliSeconds(1000), &ToggleAPPosition);
+  	//Simulator::Schedule(MilliSeconds(1000), &ToggleAPPosition);
 	Simulator::Schedule(MilliSeconds(10), &CheckAssociations);
 
 	// *************
@@ -1195,8 +1214,7 @@ int main(int argc, char *argv[]) {
 
 
 	// Force a position update to log the positions at T=0		
-	Ptr<MobilityModel> mobility1 =
-			wifiApNode.Get(0)->GetObject<MobilityModel>();
+	Ptr<MobilityModel> mobility1 = wifiApNode.Get(0)->GetObject<MobilityModel>();
     Vector apposition = mobility1->GetPosition();
     mobility1->SetPosition(apposition);
 

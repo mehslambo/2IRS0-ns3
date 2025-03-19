@@ -67,20 +67,20 @@ void TCPSensorClient::Action() {
     // If associated, first send any queued messages
     while (!m_queue.empty()) {
 		std::string queuedMsg = m_queue.front();
-		std::cout<<"Client " << m_id << " sending QUEUED message: " << queuedMsg << std::endl;
+		//std::cout<<"Client " << m_id << " sending QUEUED message: " << queuedMsg << std::endl;
 		Write((char*)queuedMsg.c_str(), queuedMsg.length());
 		Flush();
 		m_queue.pop();
     }
 	// Then send the current message
-	std::cout<<"Client " << m_id << " sending REALTIME message: " << message << std::endl;
+	//std::cout<<"Client " << m_id << " sending REALTIME message: " << message << std::endl;
     Write((char*)message.c_str(), message.length());
     Flush();
   } else {
     // Otherwise, queue the message for later transmission
     m_queue.push(message);
     NS_LOG_INFO("Client " << m_id << " not associated; message QUEUED");
-	std::cout << "Client " << m_id << " not associated; message QUEUED: " << message << std::endl;
+	//std::cout << "Client " << m_id << " not associated; message QUEUED: " << message << std::endl;
   }
 
   // Schedule the next measurement
