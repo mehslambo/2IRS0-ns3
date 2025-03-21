@@ -33,8 +33,10 @@
 #include "ns3/yans-wifi-helper.h"
 #include "ns3/wifi-phy.h"
 #include "ns3/wifi-mac-header.h"
-#include "logging/packet-logging.h"
-#include "logging/packet-logging.cc"
+//#include "logging/packet-logging-raw.h"
+//#include "logging/packet-logging-raw.cc"
+#include "logging/packet-logging-stats.h"
+#include "logging/packet-logging-stats.cc"
 #include "logging/position-logging.h"
 #include "logging/position-logging.cc"
 #include "logging/power-logging.h"
@@ -43,8 +45,14 @@
 #include <cstring>
 #include <string.h>
 #include <cerrno>
+#include <chrono>
+#include <iomanip>
 
 NS_LOG_COMPONENT_DEFINE("unified");
+
+// Progress bar tracking
+std::chrono::time_point<std::chrono::steady_clock> simulationStartTime;
+bool progressBarEnabled = true;
 
 uint32_t AssocNum = 0;
 int64_t AssocTime = 0;
@@ -142,6 +150,53 @@ bool IsAssoc(uint16_t staid)
 	return false;
 }
 
+void UpdateProgressBar() {
+    if (!progressBarEnabled) return;
+    
+    Time currentSimTime = Simulator::Now();
+    auto realTimeNow = std::chrono::steady_clock::now();
+    
+    double elapsedRealTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+        realTimeNow - simulationStartTime).count() / 1000.0;
+    
+    double percentage = (currentSimTime.GetSeconds() / stopTime.GetSeconds()) * 100.0;
+    
+    // Estimate time
+    double estimatedTotalTime = (elapsedRealTime / percentage) * 100.0;
+    double estimatedTimeRemaining = estimatedTotalTime - elapsedRealTime;
+    if (percentage < 1.0) estimatedTimeRemaining = 0; // Avoid inaccurate early estimates
+    
+    // Calculate hours, minutes, seconds for remaining time
+    int hours = static_cast<int>(estimatedTimeRemaining) / 3600;
+    int minutes = (static_cast<int>(estimatedTimeRemaining) % 3600) / 60;
+    int seconds = static_cast<int>(estimatedTimeRemaining) % 60;
+    
+    const int barWidth = 50;
+    int pos = static_cast<int>(barWidth * percentage / 100.0);
+    
+    std::cout << "\r";
+    
+    // Display current/total simulation time and percentage
+    std::cout << std::fixed << std::setprecision(1) 
+              << "Sim time: " << currentSimTime.GetSeconds() << "/" << stopTime.GetSeconds() 
+              << "s (" << percentage << "%) ";
+    
+    // Display progress bar
+    std::cout << "[";
+    for (int i = 0; i < barWidth; ++i) {
+        if (i < pos) std::cout << "=";
+        else if (i == pos) std::cout << ">";
+        else std::cout << " ";
+    }
+    std::cout << "] ";
+    
+    std::cout << "Est: " << hours << "h " << minutes << "m " << seconds << "s" << std::endl << std::flush;
+    
+    // Schedule the next progress bar update
+    if (currentSimTime < stopTime) {
+        Simulator::Schedule(MilliSeconds(1000), &UpdateProgressBar);
+    }
+}
 
 void PopulateArpCache() {
 	Ptr<ArpCache> arp = CreateObject<ArpCache>();
@@ -1160,8 +1215,10 @@ int main(int argc, char *argv[]) {
 	Config::ConnectWithoutContext(oss.str() + "RawSlot", MakeCallback(&RawSlotTrace));
 
 	// Install the packet sniffers
-	PacketLogging packetLogger(scenarioLogName.str(), wifiStaNode, wifiApNode);
-	packetLogger.EnableLogging();
+	//PacketLoggingRaw packetLogger(scenarioLogName.str(), wifiStaNode, wifiApNode);
+	//packetLogger.EnableLogging();
+	PacketLoggingStats packetLoggerStats(scenarioLogName.str(), wifiStaNode, wifiApNode);
+	packetLoggerStats.EnableLogging();
 
 	// Install the power sniffers
 	PowerLogging powerLogger(scenarioLogName.str(), wifiStaNode, wifiApNode);
@@ -1228,39 +1285,20 @@ int main(int argc, char *argv[]) {
 	// ******************
     Simulator::Schedule(Seconds(timeOut), &AssocTimeoutStartSending);
 
+	// Initialize progress bar
+	simulationStartTime = std::chrono::steady_clock::now();
+	Simulator::Schedule(Seconds(0), &UpdateProgressBar);
     
 
 	Simulator::Stop(stopTime); // allow up to a minute after the client & server apps are finished to process the queue
 	Simulator::Run();
 
-	// Visualizer throughput
-	int pay = 0, totalSuccessfulPackets = 0, totalSentPackets = 0, totalPacketsEchoed = 0;
-	bool delivered = true;
-	for (uint32_t i = 0; i < (totalNodes); i++)
-	{
-		if (stats.get(i).NumberOfSuccessfulPackets == 0)
-		{
-			delivered = false;
-		}
-		totalSuccessfulPackets += stats.get(i).NumberOfSuccessfulPackets;
-		totalSentPackets += stats.get(i).NumberOfSentPackets;
-		pay += stats.get(i).TotalPacketPayloadSize;
-		cout << i << " sent: " << stats.get(i).NumberOfSentPackets
-				<< " ; delivered: " << stats.get(i).NumberOfSuccessfulPackets
-				<< "; retransmissions:" << stats.get(i).NumberOfTCPRetransmissions
-				<< "; TotalPacketPayloadSize:" << stats.get(i).TotalPacketPayloadSize << std::endl;
+	// ******************
+	// END OF SIM CODE
+	// ******************
 
-	}
+	packetLoggerStats.DumpPacketRecordsToCsv();
 
-	if (!delivered)
-	{
-		cout << "missed" << std::endl;
-	}
-
-    cout << "total send " << totalSuccessfulPackets << " needed: 413" << std::endl;
-
-	cout << "total packet loss % "
-			<< 100 - 100. * totalPacketsEchoed / totalSentPackets << endl;
 	Simulator::Destroy();
 
 	return 0;

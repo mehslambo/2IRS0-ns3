@@ -10,16 +10,21 @@ def load_node_pos_df(scenario_folder:Path) -> pd.DataFrame:
 
 def load_phy_df(scenario_file:Path) -> pd.DataFrame:
     phy_df = pd.read_csv(scenario_file, delimiter=';', index_col=False)
-    phy_df["Time"] = phy_df["Time"].str.replace('ns', '').astype(float)
+    for col in ["Time", "TxBeginFirstSeen", "RxEndLastSeen"]:
+        if col in phy_df.columns:
+            phy_df[col] = phy_df[col].str.replace('ns', '').astype(float)
     # Drop all columns where SnifferNodeId == ?
     for col in ["SnifferNodeId", "SnifferNodeX", "SnifferNodeY", "SnifferNodeZ", "SnifferNodeType",
                 "DestinationNodeId", "DestinationNodeX", "DestinationNodeY", "DestinationNodeZ", "DestinationNodeType",
                 "SourceNodeId", "SourceNodeX", "SourceNodeY", "SourceNodeZ", "SourceNodeType"]:
-        phy_df = phy_df[phy_df[col] != "?"]
+        if col in phy_df.columns:
+            phy_df = phy_df[phy_df[col] != "?"]
+            phy_df = phy_df[phy_df[col] != "Unknown"]
     for col in ["SnifferNodeId", "SnifferNodeX", "SnifferNodeY", "SnifferNodeZ",
                 "DestinationNodeId", "DestinationNodeX", "DestinationNodeY", "DestinationNodeZ",
                 "SourceNodeId", "SourceNodeX", "SourceNodeY", "SourceNodeZ"]:
-        phy_df[col] = phy_df[col].astype(float)
+        if col in phy_df.columns:
+            phy_df[col] = phy_df[col].astype(float)
     return phy_df
 
 def load_phy_rx_begin(scenario_folder:Path) -> pd.DataFrame:
@@ -60,6 +65,11 @@ def load_monitor_sniffer_rx(scenario_folder:Path) -> pd.DataFrame:
 def load_monitor_sniffer_tx(scenario_folder:Path) -> pd.DataFrame:
     df = load_phy_df(scenario_folder / 'MonitorSnifferTx.csv')
     df = df[df["SnifferNodeId"] == df["SourceNodeId"]]
+    return df
+
+def load_packet_logging_stats(scenario_folder:Path) -> pd.DataFrame:
+    df = load_phy_df(scenario_folder / 'PacketLoggingStats.csv')
+    
     return df
 
 def load_power_state_df(scenario_folder:Path) -> pd.DataFrame:
