@@ -234,7 +234,7 @@ void TcpClient::Send(uint8_t* data, int size) {
 
 		if(err == Socket::SocketErrno::ERROR_MSGSIZE) {
 			m_packetdropped(p,DropReason::TCPTxBufferExceeded);
-			std::cout << "PACKET DROPPED" << std::endl;
+			//std::cout << "TCP PACKET DROPPED" << std::endl;
 		}
 	}
 
