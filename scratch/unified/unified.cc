@@ -47,6 +47,10 @@
 #include <cerrno>
 #include <chrono>
 #include <iomanip>
+#include "ns3/bulk-send-helper.h"
+#include "ns3/packet-sink-helper.h"
+#include "ns3/socket.h"
+#include "ns3/socket-factory.h"
 
 NS_LOG_COMPONENT_DEFINE("unified");
 
@@ -414,6 +418,7 @@ void sendStatistics(bool schedule) {
 }
 
 void onSTADeassociated(int i) {
+	std::cout << "Node " << std::to_string(i) << " was deassociated" << std::endl;
 }
 
 void updateNodesQueueLength() {
@@ -424,19 +429,25 @@ void updateNodesQueueLength() {
 	Simulator::Schedule(Seconds(0.5), &updateNodesQueueLength);
 }
 
+
+void configurePacketSink();
+void configureBulkSendApplications();
+
 static bool startedSending=false;
-
-
 
 void AssocTimeoutStartSending()
 {
   if (!startedSending) {
         startedSending=true;
-	configureTCPSensorServer();
-	configureTCPSensorClients();
+	//configureTCPSensorServer();
+	configurePacketSink();
+	//configureTCPSensorClients();
+	configureBulkSendApplications();
 	updateNodesQueueLength();
   }
 }
+
+
 
 void onSTAAssociated(int i) {
 	cout << "Node " << std::to_string(i) << " is associated and has aid " << nodes[i]->aId << endl;
@@ -807,6 +818,7 @@ void configureTCPSensorClients() {
 }
 
 void wireTCPServer(ApplicationContainer serverApp) {
+	/*
 	serverApp.Get(0)->TraceConnectWithoutContext("Rx",
 			MakeCallback(&tcpPacketReceivedAtServer));
 	serverApp.Get(0)->TraceConnectWithoutContext("Retransmission",
@@ -815,11 +827,24 @@ void wireTCPServer(ApplicationContainer serverApp) {
 			MakeCallback(&tcpPacketDroppedAtServer));
 	serverApp.Get(0)->TraceConnectWithoutContext("TCPStateChanged",
 			MakeCallback(&tcpStateChangeAtServer));
+	*/
 
+	if (serverApp.GetN() > 0) {
+		Ptr<PacketSink> sink = DynamicCast<PacketSink>(serverApp.Get(0));
+		if (sink) {
+		  sink->TraceConnectWithoutContext("Rx", MakeCallback(&tcpPacketReceivedAtServer));
+		}
+	}
 }
 
 void wireTCPClient(ApplicationContainer clientApp, int i) {
-
+	if (clientApp.GetN() > 0) {
+		Ptr<BulkSendApplication> bulkSend = DynamicCast<BulkSendApplication>(clientApp.Get(0));
+		if (bulkSend) {
+		  bulkSend->TraceConnectWithoutContext("Tx", MakeCallback(&NodeEntry::OnTcpPacketSent, nodes[i]));
+		}
+	}
+	/*
 	clientApp.Get(0)->TraceConnectWithoutContext("Tx",
 			MakeCallback(&NodeEntry::OnTcpPacketSent, nodes[i]));
 	clientApp.Get(0)->TraceConnectWithoutContext("Rx",
@@ -854,8 +879,67 @@ void wireTCPClient(ApplicationContainer clientApp, int i) {
 				MakeCallback(&NodeEntry::OnTcpIPCameraStreamStateChanged,
 						nodes[i]));
 	}
+	*/
 }
 
+void PacketSinkReceiveCallback(Ptr<const Packet> packet, const Address& from)
+{
+	/*
+    std::cout << "PacketSink received " << packet->GetSize() 
+              << " bytes from " << InetSocketAddress::ConvertFrom(from).GetIpv4() 
+              << std::endl;
+	*/
+}
+			  
+
+void configurePacketSink() {
+  // Create a packet sink on the AP to receive the bulk data
+  PacketSinkHelper sink("ns3::TcpSocketFactory", 
+                        InetSocketAddress(Ipv4Address::GetAny(), 84));
+  ApplicationContainer sinkApp = sink.Install(wifiApNode.Get(0));
+  sinkApp.Start(Seconds(0.0));
+  sinkApp.Stop(stopTime);
+  
+  // Connect using our new callback with exact signature
+  Ptr<PacketSink> packetSink = DynamicCast<PacketSink>(sinkApp.Get(0));
+  if (packetSink) {
+    packetSink->TraceConnectWithoutContext("Rx", MakeCallback(&PacketSinkReceiveCallback));
+  }
+  
+  std::cout << "Packet sink configured on AP at port 84" << std::endl;
+}
+
+void configureBulkSendApplications() {
+  std::cout << "Configuring BulkSend applications on " << totalNodes << " stations..." << std::endl;
+  
+  uint32_t configuredClients = 0;
+  
+  for (uint16_t i = 0; i < totalNodes; i++) {
+    if (IsAssoc(i)) {
+	  // Get the address of the station using the IPv4 interface we created
+	  Ipv4Address staAddress = staNodeInterface.GetAddress(i);
+      
+      // Create the BulkSend application
+      BulkSendHelper bulkSend("ns3::TcpSocketFactory", 
+                             InetSocketAddress(apNodeInterface.GetAddress(0), 84));
+      
+      // Configure the BulkSend application
+      bulkSend.SetAttribute("MaxBytes", UintegerValue(0)); // Unlimited
+      bulkSend.SetAttribute("SendSize", UintegerValue(1024)); // 1KB chunks
+      
+      // Install on station node
+      ApplicationContainer clientApp = bulkSend.Install(wifiStaNode.Get(i));
+      clientApp.Start(Seconds(1.0) + MilliSeconds(i * 10)); // Stagger start times
+      clientApp.Stop(stopTime);
+      
+      // No trace connections for now to avoid type issues
+      
+      configuredClients++;
+    }
+  }
+
+  std::cout << "Configured " << configuredClients << " BulkSend clients" << std::endl;
+}
 
 Time timeIdleArray[MaxSta];
 Time timeRxArray[MaxSta];
@@ -958,9 +1042,10 @@ void CheckAssociations() {
 		Vector staPos = staMob->GetPosition();
 		double dx = apPos.x - staPos.x;
 		double dy = apPos.y - staPos.y;
-		double distance = std::sqrt(dx * dx + dy * dy);
-		// Use a threshold (e.g. 100 units) to decide association
-		if (distance < 100) {
+		double dz = apPos.z - staPos.z;
+		double distance = std::sqrt(dx * dx + dy * dy + dz * dz);
+		// Use a threshold (1.8 meters) to decide association
+		if (distance < 1.8) {
 		if (!IsAssoc(i)) {
 			// Trigger association event
 			assoc_vector[i]->SetAssoc("", Mac48Address());
@@ -984,6 +1069,9 @@ int main(int argc, char *argv[]) {
 
 	// bool OutputPosition = true;
 
+	uint32_t channelWidth = 1;
+	std::string dataRate = "OfdmRate1_2MbpsBW1MHz";
+
 	CommandLine cmd;
 	cmd.AddValue("sensors", "Number of sensors", totalNodes);
 	cmd.AddValue("nodeXOffset", "Offset of the nodes in the x axis", nodeXOffset);
@@ -1000,11 +1088,13 @@ int main(int argc, char *argv[]) {
 	cmd.AddValue("stopTime", "Simulation time in seconds", simTime);
 	cmd.AddValue("timeOut", "Association timeout in seconds", timeOut);
 	cmd.AddValue("propagationModel", "Propagation model (air/freshwater)", propagationModel);
+	cmd.AddValue("channelWidth", "1/2 MHz", channelWidth);
+	cmd.AddValue("dataRate", "Data rate. Recommended: OfdmRate1_2MbpsBW1MHz, OfdmRate7_8MbpsBW2MHz", propagationModel);
 	// cmd.Parse(argc, argv);
 	// CommandLine arguments are processed by Configuration.
 
 	config = Configuration(&cmd, argc, argv);
-	totalNodes = nodeXCount * nodeYCount * nodeZCount + gateways * gateways;
+	totalNodes = nodeXCount * nodeYCount * nodeZCount;
 
 	std::ostringstream argStream;
 	for (int i = 1; i < argc; i++) { // Skip argv[0] (program name)
@@ -1049,8 +1139,8 @@ int main(int argc, char *argv[]) {
 			config.totalRawSlots += config.rps.rpsset[i]->GetRawAssigmentObj(j).GetSlotNum();
 			//cout << "Total slots after group " << j << " is " << totalRawSlots << endl;
 		}
-
 	}
+
 	transmissionsPerTIMGroupAndSlotFromAPSinceLastInterval = vector<long>(
 			config.totalRawSlots, 0);
 	transmissionsPerTIMGroupAndSlotFromSTASinceLastInterval = vector<long>(
@@ -1144,8 +1234,8 @@ int main(int argc, char *argv[]) {
 	YansWifiPhyHelper phy = YansWifiPhyHelper::Default();
 	phy.SetErrorRateModel("ns3::YansErrorRateModel");
 	phy.SetChannel(channel);
-	phy.Set("ShortGuardEnabled", BooleanValue(false));
-	phy.Set("ChannelWidth", UintegerValue(1)); // changed
+	phy.Set("ShortGuardEnabled", BooleanValue(true));
+	phy.Set("ChannelWidth", UintegerValue(channelWidth)); // Only 1/2; 4 is unstable and not documented; 8/16MHz is not implemented :(
 	phy.Set("EnergyDetectionThreshold", DoubleValue(-130.0));
 	phy.Set("CcaMode1Threshold", DoubleValue(-130.0));
 	phy.Set("TxGain", DoubleValue(14.0));
@@ -1162,11 +1252,10 @@ int main(int argc, char *argv[]) {
 	S1gWifiMacHelper mac = S1gWifiMacHelper::Default();
 
 	Ssid ssid = Ssid("ns380211ah");
-	StringValue DataRate;
-	DataRate = StringValue("OfdmRate1_2MbpsBW1MHz"); // changed
+	StringValue DataRateSV;
+	DataRateSV = StringValue(dataRate);
 
-	wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager", "DataMode", DataRate, "ControlMode", DataRate);
-
+	wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager", "DataMode", DataRateSV, "ControlMode", DataRateSV);	
 
 	mac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid), "ActiveProbing",
 			BooleanValue(false));
@@ -1174,14 +1263,14 @@ int main(int argc, char *argv[]) {
 	NetDeviceContainer staDevice;
 	staDevice = wifi.Install(phy, mac, wifiStaNode);
 
-	mac.SetType ("ns3::ApWifiMac",
-	                 "Ssid", SsidValue (ssid),
-	                 "BeaconInterval", TimeValue (MicroSeconds(config.BeaconInterval)),
-	                 "NRawStations", UintegerValue (config.NRawSta),
-	                 "RPSsetup", RPSVectorValue (config.rps),
-	                 "PageSliceSet", pageSliceValue (config.pageS),
-	                 "TIMSet", TIMValue (config.tim)
-	               );
+	mac.SetType("ns3::ApWifiMac",
+				"Ssid", SsidValue (ssid),
+				"BeaconInterval", TimeValue (MicroSeconds(config.BeaconInterval)),
+				"NRawStations", UintegerValue (config.NRawSta),
+				"RPSsetup", RPSVectorValue (config.rps),
+				"PageSliceSet", pageSliceValue (config.pageS),
+				"TIMSet", TIMValue (config.tim)
+			);
 
 	phy.Set("TxGain", DoubleValue(3.0));
 	phy.Set("RxGain", DoubleValue(3.0));
