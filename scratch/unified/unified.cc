@@ -47,8 +47,8 @@
 #include <cerrno>
 #include <chrono>
 #include <iomanip>
-//#include "ns3/bulk-send-helper.h"
-#include "reconnecting-bulk-send-application.h"
+#include "ns3/bulk-send-helper.h"
+//#include "reconnecting-bulk-send-application.h"
 #include "ns3/packet-sink-helper.h"
 #include "ns3/socket.h"
 #include "ns3/socket-factory.h"
@@ -208,7 +208,7 @@ void UpdateProgressBar() {
     if (!progressBarEnabled) return;
 
 	// CSI[2J clears screen, CSI[H moves the cursor to top-left corner
-    std::cout << "\x1B[2J\x1B[H";
+    //std::cout << "\x1B[2J\x1B[H";
 
 	DisplayProgressBar();
 	std::cout << std::endl;
@@ -227,7 +227,7 @@ void UpdateProgressBar() {
     
     // Schedule the next progress bar update
     if (Simulator::Now() < stopTime) {
-        Simulator::Schedule(MilliSeconds(1000), &UpdateProgressBar);
+        Simulator::Schedule(Seconds(1), &UpdateProgressBar);
     }
 }
 
@@ -480,7 +480,8 @@ void onSTAAssociated(int i) {
 		}
 	}
 
-	configureBulkSendApplication(i);
+	// Add a tiny offset to let the association process finish
+	Simulator::Schedule(Simulator::Now() + Seconds(0.0001), &configureBulkSendApplication, i);
 	//configureTCPSensorClients();
 	//configureUDPClientApplication(i);
 }
@@ -897,12 +898,12 @@ void ApplicationPacketReceivedCallback(Ptr<const Packet> packet, const Address& 
 	int staId = getSTAIdFromAddress(InetSocketAddress::ConvertFrom(from).GetIpv4());
 	if (staId != -1)
 		packetSinkCountsPerStation[staId]++;
-	/*
-	    std::cout << "PacketSink received " << packet->GetSize() 
-              << " bytes from " << InetSocketAddress::ConvertFrom(from).GetIpv4()
-			  << "(Station " << getSTAIdFromAddress(InetSocketAddress::ConvertFrom(from).GetIpv4()) << ")" 
-              << std::endl;
-	*/
+	
+	std::cout << "PacketSink received " << packet->GetSize() 
+			<< " bytes from " << InetSocketAddress::ConvertFrom(from).GetIpv4()
+			<< "(Station " << getSTAIdFromAddress(InetSocketAddress::ConvertFrom(from).GetIpv4()) << ")" 
+			<< std::endl;
+	
 }
 			  
 
@@ -922,7 +923,7 @@ void configurePacketSink() {
 }
 
 void OnApplicationPacketSent(Ptr<const Packet> packet) {
-	//std::cout << "Application packet sent"<< std::endl;
+	std::cout << "Application packet sent"<< std::endl;
 }
 
 void configureBulkSendApplication(int staId) {
@@ -933,7 +934,7 @@ void configureBulkSendApplication(int staId) {
 	Ipv4Address staAddress = staNodeInterface.GetAddress(staId);
 			
 	// Create the BulkSend application
-	Ptr<ReconnectingBulkSendApplication> app = CreateObject<ReconnectingBulkSendApplication>();
+	Ptr<BulkSendApplication> app = CreateObject<BulkSendApplication>();
 
 	app->SetAttribute("Remote", AddressValue(InetSocketAddress(apNodeInterface.GetAddress(0), 84)));
 	app->SetAttribute("MaxBytes", UintegerValue(0));  // Unlimited
@@ -991,13 +992,13 @@ void configureUDPClientApplication(int staId) {
 }
 
 void destroyAllApplications(int staId) {
-	std::cout << "Removing all apps on station " << staId << std::endl;
+	std::cout << "Disabling all apps on station " << staId << std::endl;
 	
 	// Clear the applications from the nodes that are not associated
 	for (uint32_t appCnt = 0; appCnt < wifiStaNode.Get(staId)->GetNApplications(); appCnt++) {
-		std::cout << "Removing app " << appCnt << " from station " << staId << std::endl;
+		std::cout << "Disabling app " << appCnt << " from station " << staId << std::endl;
 		wifiStaNode.Get(staId)->GetApplication(appCnt)->SetStopTime(Simulator::Now());
-		wifiStaNode.Get(staId)->GetApplication(appCnt)->Dispose();
+		//wifiStaNode.Get(staId)->GetApplication(appCnt)->Dispose();
 	}
 }
 
@@ -1146,51 +1147,10 @@ void DisplayAssociations() {
 	}
 }
 
-void TriggerReassociation() {
-    for (uint32_t i = 0; i < wifiStaNode.GetN(); i++) {
-		if (!IsAssoc(i)) {
-            // Get the WiFi MAC and trigger reassociation
-            Ptr<NetDevice> dev = wifiStaNode.Get(i)->GetDevice(0);
-            Ptr<WifiNetDevice> wifiDev = DynamicCast<WifiNetDevice>(dev);
-            if (wifiDev) {
-                Ptr<StaWifiMac> staMac = DynamicCast<StaWifiMac>(wifiDev->GetMac());
-                if (staMac) {
-                    //std::cout << "Attempting to reassociate node " << i << std::endl;
-					
-					// APPROACH 1: Set SSID to trigger reassociation
-                    // Get current SSID
-					//ns3::Ssid currentSsid = staMac->GetSsid();
-                    
-                    // Force disassociation first and reset the node's internals
-                    //staMac->SendDisAssociationRequest();
-                    
-					// Reset connection state and trigger new association
-					//staMac->SetAttribute("ActiveProbing", BooleanValue(true));
-					//staMac->SetSsid(currentSsid);
-
-					// APPROACH 2: Mess with MAC internals
-					//staMac->m_aid = 8192;
-					//staMac->SetState(StaWifiMac::BEACON_MISSED);
-					//staMac->OnDeassociated();
-					//staMac->TryToEnsureAssociated();
-
-					// APPROACH 3
-					//staMac->StartActiveAssociation();
-                }
-            }
-        }
-	}
-
-    // Schedule next check with longer interval to allow time for association
-    Simulator::Schedule(Seconds(0.1), &TriggerReassociation);
-}
-
 int main(int argc, char *argv[]) {
 	//LogComponentEnable("TCPSensorServer", LOG_ALL);
 	//LogComponentEnable("TCPSensorClient", LOG_ALL);
 	LogComponentEnable("WUSN", LOG_ALL);
-
-	// bool OutputPosition = true;
 
 	uint32_t channelWidth = 1;
 	std::string dataRate = "OfdmRate1_2MbpsBW1MHz";
@@ -1319,7 +1279,6 @@ int main(int argc, char *argv[]) {
 	WaypointController controller(wifiApNode.Get(0), uavWaypoints, uavSpeed);
 
   	//Simulator::Schedule(MilliSeconds(1000), &ToggleAPPosition);
-	Simulator::Schedule(Seconds(0), &TriggerReassociation);
 
 	// *************
 	// CHANNEL 
@@ -1522,6 +1481,7 @@ int main(int argc, char *argv[]) {
 	packetLoggerStats.DumpPacketRecordsToCsv();
 
 	Simulator::Destroy();
+	std::cout << "Simulation ended gracefully" << std::endl;
 
 	return 0;
 }

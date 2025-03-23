@@ -16,3 +16,5 @@ wutils.pyc
 postprocessing/.ipynb_checkpoints/
 
 postprocessing/logs/
+
+postprocessing/stdout/

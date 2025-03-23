@@ -309,7 +309,15 @@ void PacketLoggingStats::DumpPacketRecords() const
 
 void PacketLoggingStats::DumpPacketRecordsToCsv() const
 {
-    std::string filename = "postprocessing/logs/" + m_scenarioName + "/PacketLoggingStats.csv";
+    std::string baseLogPath = "postprocessing/logs/" + m_scenarioName;
+    // Create logging directory if it doesn't exist
+    std::string cmd = "mkdir -p " + baseLogPath;
+    int result = system(cmd.c_str());
+    if (result != 0) {
+        std::cout << "Failed to create logging directory: " << baseLogPath << std::endl;
+    }
+    
+    std::string filename = baseLogPath + "/PacketLoggingStats.csv";
     std::ofstream csvFile(filename.c_str());
     if (!csvFile.is_open()) {
         std::cerr << "Failed to open CSV file for writing: " << filename << std::endl;
