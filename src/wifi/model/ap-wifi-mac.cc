@@ -395,7 +395,7 @@ ApWifiMac::SetChannelWidth (uint32_t width)
 uint32_t
 ApWifiMac::GetChannelWidth (void) const
 {
-    NS_LOG_UNCOND (GetAddress () << ", GetChannelWidth " << m_channelWidth );
+   NS_LOG_INFO (GetAddress () << ", GetChannelWidth " << m_channelWidth );
    return m_channelWidth;
 }
 
@@ -675,7 +675,7 @@ ApWifiMac::GetSupportedRates (void) const
     {
       for (uint32_t i = 0; i < m_phy->GetNBssMembershipSelectors (); i++)
         {
-          NS_LOG_UNCOND (GetAddress () << " GetSupportedRates ");
+          NS_LOG_INFO (GetAddress () << " GetSupportedRates ");
           rates.SetBasicRate (m_phy->GetBssMembershipSelector (i)); //not sure it's needed
         }
     }
@@ -1576,13 +1576,13 @@ ApWifiMac::Receive (Ptr<Packet> packet, const WifiMacHeader *hdr)
               uint8_t aid_l = mac[5];
               uint8_t aid_h = mac[4] & 0x1f;
               uint16_t aid = (aid_h << 8) | (aid_l << 0);
-              NS_LOG_UNCOND ("Disassociation request from aid " << aid);
+              NS_LOG_INFO ("Disassociation request from aid " << aid);
 
              for (std::vector<uint16_t>::iterator it = m_sensorList.begin(); it != m_sensorList.end(); it++)
                 {
                     if (*it == aid)
                     {   m_sensorList.erase (it); //remove from association list
-                        NS_LOG_UNCOND ("erase aid " << aid << " by Ap from m_sensorList ");
+                        NS_LOG_INFO ("erase aid " << aid << " by Ap from m_sensorList ");
                         break;
                     }
                 }

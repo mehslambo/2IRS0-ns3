@@ -38,7 +38,7 @@ public:
     static Time minLatency;
     static Time minJitter;
     static Time maxJitter;
-    NodeEntry(int id, Statistics* stats,Ptr<Node> node, Ptr<NetDevice> device);
+    NodeEntry(int id, Statistics* stats, Ptr<Node> node, Ptr<NetDevice> device);
 
     virtual ~NodeEntry();
 
@@ -52,6 +52,12 @@ public:
     void UnsetAssociation(std::string context, Mac48Address address);
     void OnS1gBeaconMissed(std::string context,bool nextBeaconIsDTIM);
     void OnNrOfTransmissionsDuringRAWSlotChanged(std::string context, uint16_t oldValue, uint16_t newValue);
+
+    void SetApplication(ApplicationContainer app);
+    bool HasApplication();
+    void StartApplication();
+    void StopApplication();
+
 
 
     void OnPhyTxBegin(std::string context, Ptr<const Packet> packet);
@@ -117,6 +123,8 @@ private:
     Statistics* stats;
 	Ptr<Node> node;
 	Ptr<NetDevice> device;
+    ApplicationContainer m_app;
+    bool m_hasApp;
 
     std::function<void()> associatedCallback;
     std::function<void()> deAssociatedCallback;

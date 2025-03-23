@@ -107,7 +107,7 @@ public:
 
     /*void SetPageSlicingSupported (uint8_t support);
     uint8_t GetPageSlicingSupported (void) const;*/
-private:
+//private:
     uint32_t m_staType;
     uint32_t m_channelWidth;
     Time m_currentslotDuration;

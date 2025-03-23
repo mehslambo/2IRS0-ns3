@@ -13,7 +13,24 @@ Time NodeEntry::minJitter = Time::Max();
 Time NodeEntry::maxJitter = Time::Min();
 
 NodeEntry::NodeEntry(int id, Statistics* stats, Ptr<Node> node, Ptr<NetDevice> device) :
-				id(id), stats(stats), node(node), device(device) {
+				id(id), stats(stats), node(node), device(device), m_hasApp(false) {
+}
+
+void NodeEntry::SetApplication(ApplicationContainer app) { m_app = app; m_hasApp = true; }
+bool NodeEntry::HasApplication() { return m_hasApp; }
+void NodeEntry::StartApplication() { 
+	if (HasApplication()) {
+		m_app.Start(Simulator::Now()); 
+	} else {
+		cout << "Node " << id << " has no application to start" << endl;
+	}
+}
+void NodeEntry::StopApplication() { 
+	if (HasApplication()) {
+		m_app.Stop(Simulator::Now()); 
+	} else {
+		cout << "Node " << id << " has no application to stop" << endl;
+	}
 }
 
 void NodeEntry::SetAssociation(std::string context, Mac48Address address) {

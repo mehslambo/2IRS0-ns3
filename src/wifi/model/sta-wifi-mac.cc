@@ -977,7 +977,7 @@ StaWifiMac::TxOk (const WifiMacHeader &hdr)
   if (hdr.IsDisassociation ()
       && IsWaitDisAssocTxOk ())
     {
-      NS_LOG_UNCOND ( GetAddress () << " disassociation request is received bt " << hdr.GetAddr1 () );
+      NS_LOG_INFO ( GetAddress () << " disassociation request is received bt " << hdr.GetAddr1 () );
       SetState (REFUSED);  //use REFUSED
       if (m_disassocRequestEvent.IsRunning ())
         {
@@ -1010,7 +1010,7 @@ StaWifiMac::SendDisAssociationRequest (void)
     if (m_s1gSupported)
     {
         disassoc.SetS1gCapabilities (GetS1gCapabilities ());
-        NS_LOG_UNCOND (GetAddress () << " StaWifiMac::SendDisAssociationRequest ");
+        NS_LOG_INFO (GetAddress () << " StaWifiMac::SendDisAssociationRequest ");
 
     }
 
@@ -1627,7 +1627,7 @@ StaWifiMac::Receive (Ptr<Packet> packet, const WifiMacHeader *hdr)
               if (m_s1gSupported)
                 {
                   S1gCapabilities s1gcapabilities = assocResp.GetS1gCapabilities ();
-                  NS_LOG_UNCOND (GetAddress () << ", receive " << uint16_t( s1gcapabilities.GetChannelWidth ()));
+                  NS_LOG_INFO (GetAddress () << ", receive " << uint16_t( s1gcapabilities.GetChannelWidth ()));
                   m_stationManager->AddStationS1gCapabilities (hdr->GetAddr2 (),s1gcapabilities);
                 }
 
@@ -1638,7 +1638,7 @@ StaWifiMac::Receive (Ptr<Packet> packet, const WifiMacHeader *hdr)
                    {
                     if (m_phy->m_deviceRateSet[j] == mode )
                     {
-                       NS_LOG_UNCOND (GetAddress () << ", AddSupportedMode " << hdr->GetAddr2 () << ", " << mode);                        
+                      NS_LOG_INFO (GetAddress () << ", AddSupportedMode " << hdr->GetAddr2 () << ", " << mode);                        
                         m_stationManager->AddSupportedMode (hdr->GetAddr2 (), mode);
                         if (rates.IsBasicRate (mode.GetDataRate ()))
                         {

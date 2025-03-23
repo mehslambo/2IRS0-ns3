@@ -47,7 +47,8 @@
 #include <cerrno>
 #include <chrono>
 #include <iomanip>
-#include "ns3/bulk-send-helper.h"
+//#include "ns3/bulk-send-helper.h"
+#include "reconnecting-bulk-send-application.h"
 #include "ns3/packet-sink-helper.h"
 #include "ns3/socket.h"
 #include "ns3/socket-factory.h"
@@ -89,7 +90,9 @@ std::string propagationModel = "air"; // Valid values are "air" and "freshwater"
 
 Time stopTime = Hours(2);
 uint32_t simTime = 3600;
-uint32_t timeOut = 10;
+
+void onSTAAssociated(int i);
+void onSTADeassociated(int i);
 
 class assoc_record {
 public:
@@ -417,10 +420,6 @@ void sendStatistics(bool schedule) {
 		Simulator::Schedule(Seconds(config.visualizerSamplingInterval),	&sendStatistics, true);
 }
 
-void onSTADeassociated(int i) {
-	std::cout << "Node " << std::to_string(i) << " was deassociated" << std::endl;
-}
-
 void updateNodesQueueLength() {
 	for (uint32_t i = 0; i < totalNodes; i++) {
 		nodes[i]->UpdateQueueLength();
@@ -429,28 +428,12 @@ void updateNodesQueueLength() {
 	Simulator::Schedule(Seconds(0.5), &updateNodesQueueLength);
 }
 
-
-void configurePacketSink();
-void configureBulkSendApplications();
-
-static bool startedSending=false;
-
-void AssocTimeoutStartSending()
-{
-  if (!startedSending) {
-        startedSending=true;
-	//configureTCPSensorServer();
-	configurePacketSink();
-	//configureTCPSensorClients();
-	configureBulkSendApplications();
-	updateNodesQueueLength();
-  }
-}
-
-
+void configureBulkSendApplication(int staId);
+void configureUDPClientApplication(int staId);
+void destroyAllApplications(int staId);
 
 void onSTAAssociated(int i) {
-	cout << "Node " << std::to_string(i) << " is associated and has aid " << nodes[i]->aId << endl;
+	cout << "(onSTAAssociated) Node " << std::to_string(i) << " is associated with aid " << nodes[i]->aId << std::endl;
 
 	for (uint32_t k = 0; k < config.rps.rpsset.size(); k++) {
 		for (uint32_t j = 0; j < config.rps.rpsset[k]->GetNumberOfRawGroups(); j++) {
@@ -471,17 +454,17 @@ void onSTAAssociated(int i) {
 		}
 	}
 
+	configureBulkSendApplication(i);
+	//configureTCPSensorClients();
+	//configureUDPClientApplication(i);
+}
 
-	// RPS, Raw group and RAW slot assignment
-
-	if (GetAssocNum() == (totalNodes)) {
-		cout << "All " << AssocNum << " stations associated at " << Simulator::Now ().GetMicroSeconds () <<", configuring clients & server" << endl;
-
-		// association complete, start sending packets
-			stats.TimeWhenEverySTAIsAssociated = Simulator::Now();
-
-                        Simulator::Schedule(Seconds(0.5), &AssocTimeoutStartSending);
-	}
+void onSTADeassociated(int i) {
+	cout << "(onSTADeassociated) Node " << std::to_string(i) << " is deassociated" << endl;
+	
+	// Stop application
+	//nodes[i]->StopApplication();
+	destroyAllApplications(i);
 }
 
 void RpsIndexTrace(uint16_t oldValue, uint16_t newValue) {
@@ -882,11 +865,22 @@ void wireTCPClient(ApplicationContainer clientApp, int i) {
 	*/
 }
 
-void PacketSinkReceiveCallback(Ptr<const Packet> packet, const Address& from)
+uint32_t packetSinkCountsPerStation[MaxSta];
+
+void ApplicationPacketReceivedCallback(Ptr<const Packet> packet, const Address& from)
 {
+	int staId = getSTAIdFromAddress(InetSocketAddress::ConvertFrom(from).GetIpv4());
+	if (staId != -1)
+		packetSinkCountsPerStation[staId]++;
+
+	std::cout<<"Application packet received counts: ";
+	for (uint32_t i = 0; i < wifiStaNode.GetN(); i++) 
+		std::cout<<packetSinkCountsPerStation[i]<<" ";
+	std::cout<<std::endl;
 	/*
-    std::cout << "PacketSink received " << packet->GetSize() 
-              << " bytes from " << InetSocketAddress::ConvertFrom(from).GetIpv4() 
+	    std::cout << "PacketSink received " << packet->GetSize() 
+              << " bytes from " << InetSocketAddress::ConvertFrom(from).GetIpv4()
+			  << "(Station " << getSTAIdFromAddress(InetSocketAddress::ConvertFrom(from).GetIpv4()) << ")" 
               << std::endl;
 	*/
 }
@@ -901,44 +895,91 @@ void configurePacketSink() {
   sinkApp.Stop(stopTime);
   
   // Connect using our new callback with exact signature
-  Ptr<PacketSink> packetSink = DynamicCast<PacketSink>(sinkApp.Get(0));
-  if (packetSink) {
-    packetSink->TraceConnectWithoutContext("Rx", MakeCallback(&PacketSinkReceiveCallback));
-  }
+  sinkApp.Get(0)->TraceConnectWithoutContext("Rx", MakeCallback(&ApplicationPacketReceivedCallback));
   
   std::cout << "Packet sink configured on AP at port 84" << std::endl;
 }
 
-void configureBulkSendApplications() {
-  std::cout << "Configuring BulkSend applications on " << totalNodes << " stations..." << std::endl;
-  
-  uint32_t configuredClients = 0;
-  
-  for (uint16_t i = 0; i < totalNodes; i++) {
-    if (IsAssoc(i)) {
-	  // Get the address of the station using the IPv4 interface we created
-	  Ipv4Address staAddress = staNodeInterface.GetAddress(i);
-      
-      // Create the BulkSend application
-      BulkSendHelper bulkSend("ns3::TcpSocketFactory", 
-                             InetSocketAddress(apNodeInterface.GetAddress(0), 84));
-      
-      // Configure the BulkSend application
-      bulkSend.SetAttribute("MaxBytes", UintegerValue(0)); // Unlimited
-      bulkSend.SetAttribute("SendSize", UintegerValue(1024)); // 1KB chunks
-      
-      // Install on station node
-      ApplicationContainer clientApp = bulkSend.Install(wifiStaNode.Get(i));
-      clientApp.Start(Seconds(1.0) + MilliSeconds(i * 10)); // Stagger start times
-      clientApp.Stop(stopTime);
-      
-      // No trace connections for now to avoid type issues
-      
-      configuredClients++;
-    }
-  }
+void OnApplicationPacketSent(Ptr<const Packet> packet) {
+	//std::cout << "Application packet sent"<< std::endl;
+}
 
-  std::cout << "Configured " << configuredClients << " BulkSend clients" << std::endl;
+void configureBulkSendApplication(int staId) {
+	if (!IsAssoc(staId) || wifiStaNode.Get(staId)->GetNApplications() > 0)
+		return;
+	std::cout << "Installing bulk send on station " << staId << std::endl;
+	// Get the address of the station using the IPv4 interface we created
+	Ipv4Address staAddress = staNodeInterface.GetAddress(staId);
+			
+	// Create the BulkSend application
+	Ptr<ReconnectingBulkSendApplication> app = CreateObject<ReconnectingBulkSendApplication>();
+
+	app->SetAttribute("Remote", AddressValue(InetSocketAddress(apNodeInterface.GetAddress(0), 84)));
+	app->SetAttribute("MaxBytes", UintegerValue(0));  // Unlimited
+	app->SetAttribute("SendSize", UintegerValue(1024));
+
+	// Install on station node
+	wifiStaNode.Get(staId)->AddApplication(app);
+	app->SetStartTime(Seconds(0.0));
+	app->SetStopTime(stopTime); 
+
+	// Add a cout for whenever bulkSend sends something
+	app->TraceConnectWithoutContext("Tx", MakeCallback(&OnApplicationPacketSent));
+}
+
+void configureBulkSendApplications() {
+  for (uint16_t i = 0; i < totalNodes; i++) {
+	configureBulkSendApplication(i);
+  }
+}
+
+void configureUDPServer() {
+	// Create a UDP server application on the AP
+	UdpServerHelper server(7);
+	ApplicationContainer serverApp = server.Install(wifiApNode.Get(0));
+	serverApp.Start(Seconds(0.0));
+	serverApp.Stop(stopTime);
+
+	// Connect using our new callback with exact signature
+	serverApp.Get(0)->TraceConnectWithoutContext("Rx", MakeCallback(&ApplicationPacketReceivedCallback));
+
+	std::cout << "UDP server configured on AP at port 7" << std::endl;
+}
+
+
+void configureUDPClientApplication(int staId) {
+	if (!IsAssoc(staId) || wifiStaNode.Get(staId)->GetNApplications() > 0)
+		return;
+	std::cout << "Installing UDP client on station " << staId << std::endl;
+	// Get the address of the station using the IPv4 interface we created
+	Ipv4Address staAddress = staNodeInterface.GetAddress(staId);
+	
+	UdpClientHelper client(apNodeInterface.GetAddress(0), 7);
+ 	client.SetAttribute("MaxPackets", UintegerValue(100));
+  	client.SetAttribute("Interval", TimeValue(Seconds(0.01)));
+  	client.SetAttribute("PacketSize", UintegerValue(1024));
+  	ApplicationContainer clientApps = client.Install(wifiStaNode.Get(staId));
+  	clientApps.Start(Seconds(0.0));
+  	clientApps.Stop(stopTime);
+
+	clientApps.Get(0)->TraceConnectWithoutContext("Tx", MakeCallback(&OnApplicationPacketSent));
+}
+
+void destroyAllApplications(int staId) {
+	std::cout << "Removing all apps on station " << staId << std::endl;
+	
+	// Clear the applications from the nodes that are not associated
+	for (uint32_t appCnt = 0; appCnt < wifiStaNode.Get(staId)->GetNApplications(); appCnt++) {
+		std::cout << "Removing app " << appCnt << " from station " << staId << std::endl;
+		wifiStaNode.Get(staId)->GetApplication(appCnt)->SetStopTime(Simulator::Now());
+		wifiStaNode.Get(staId)->GetApplication(appCnt)->Dispose();
+	}
+}
+
+void configureUDPClientApplications() {
+  for (uint16_t i = 0; i < totalNodes; i++) {
+	configureUDPClientApplication(i);
+  }
 }
 
 Time timeIdleArray[MaxSta];
@@ -1030,7 +1071,7 @@ void ToggleAPPosition() {
 	Simulator::Schedule(MilliSeconds(500), &ToggleAPPosition);
 }
 
-// Check association status for each station node based on distance to AP
+// Checks association status for each station node
 void CheckAssociations() {
 	// Get AP position
 	Ptr<MobilityModel> apMob = wifiApNode.Get(0)->GetObject<MobilityModel>();
@@ -1044,22 +1085,80 @@ void CheckAssociations() {
 		double dy = apPos.y - staPos.y;
 		double dz = apPos.z - staPos.z;
 		double distance = std::sqrt(dx * dx + dy * dy + dz * dz);
-		// Use a threshold (1.8 meters) to decide association
-		if (distance < 1.8) {
-		if (!IsAssoc(i)) {
-			// Trigger association event
-			assoc_vector[i]->SetAssoc("", Mac48Address());
-			std::cout<<"Station " << i << " associated (distance=" << distance << ")"<<std::endl;
+
+		Ptr<NetDevice> dev = wifiStaNode.Get(i)->GetDevice(0);
+		Ptr<WifiNetDevice> wifiDev = DynamicCast<WifiNetDevice>(dev);
+		Ptr<StaWifiMac> staMac = DynamicCast<StaWifiMac>(wifiDev->GetMac());
+		std::string macStateString = "UNKNOWN";
+		if (staMac) {
+			StaWifiMac::MacState macState = staMac->m_state;
+			switch (macState) {
+				case StaWifiMac::ASSOCIATED:
+					macStateString = "ASSOCIATED";
+					break;
+				case StaWifiMac::WAIT_PROBE_RESP:
+					macStateString = "WAIT_PROBE_RESP";
+					break;
+				case StaWifiMac::WAIT_ASSOC_RESP:
+					macStateString = "WAIT_ASSOC_RESP";
+					break;
+				case StaWifiMac::WAIT_DISASSOC_ACK:
+					macStateString = "WAIT_DISASSOC_ACK";
+					break;
+				case StaWifiMac::BEACON_MISSED:
+					macStateString = "BEACON_MISSED";
+					break;
+				case StaWifiMac::REFUSED:
+					macStateString = "REFUSED";
+					break;
+			}
 		}
-		} else {
-		if (IsAssoc(i)) {
-			// Trigger deassociation event
-			assoc_vector[i]->UnsetAssoc("", Mac48Address());
-			std::cout<<"Station " << i << " deassociated (distance=" << distance << ")"<<std::endl;
-		}
-		}
+
+		if (IsAssoc(i))
+			std::cout<<"Station " << i << " is currently associated (distance=" << distance << ", internal state=" << macStateString << ")"<<std::endl;
+		else 
+			std::cout<<"Station " << i << " is currently deassociated (distance=" << distance << ", internal state=" << macStateString << ")"<<std::endl;
 	}
-	Simulator::Schedule(MilliSeconds(10), &CheckAssociations);
+	Simulator::Schedule(Seconds(0.5), &CheckAssociations);
+}
+
+void TriggerReassociation() {
+    for (uint32_t i = 0; i < wifiStaNode.GetN(); i++) {
+		if (!IsAssoc(i)) {
+            // Get the WiFi MAC and trigger reassociation
+            Ptr<NetDevice> dev = wifiStaNode.Get(i)->GetDevice(0);
+            Ptr<WifiNetDevice> wifiDev = DynamicCast<WifiNetDevice>(dev);
+            if (wifiDev) {
+                Ptr<StaWifiMac> staMac = DynamicCast<StaWifiMac>(wifiDev->GetMac());
+                if (staMac) {
+                    //std::cout << "Attempting to reassociate node " << i << std::endl;
+					
+					// APPROACH 1: Set SSID to trigger reassociation
+                    // Get current SSID
+					//ns3::Ssid currentSsid = staMac->GetSsid();
+                    
+                    // Force disassociation first and reset the node's internals
+                    //staMac->SendDisAssociationRequest();
+                    
+					// Reset connection state and trigger new association
+					//staMac->SetAttribute("ActiveProbing", BooleanValue(true));
+					//staMac->SetSsid(currentSsid);
+
+					// APPROACH 2: Mess with MAC internals
+					//staMac->m_aid = 8192;
+					//staMac->SetState(StaWifiMac::BEACON_MISSED);
+					//staMac->OnDeassociated();
+					//staMac->TryToEnsureAssociated();
+
+					// APPROACH 3
+					staMac->StartActiveAssociation();
+                }
+            }
+        }
+	}
+
+    // Schedule next check with longer interval to allow time for association
+    Simulator::Schedule(Seconds(0.1), &TriggerReassociation);
 }
 
 int main(int argc, char *argv[]) {
@@ -1086,10 +1185,9 @@ int main(int argc, char *argv[]) {
 	cmd.AddValue("uavSpeed", "The speed of the UAV (in m/s)", uavSpeed);
 	cmd.AddValue("uavZOffset", "The depth at which the UAV operates at (should be -)", uavZOffset);
 	cmd.AddValue("stopTime", "Simulation time in seconds", simTime);
-	cmd.AddValue("timeOut", "Association timeout in seconds", timeOut);
 	cmd.AddValue("propagationModel", "Propagation model (air/freshwater)", propagationModel);
 	cmd.AddValue("channelWidth", "1/2 MHz", channelWidth);
-	cmd.AddValue("dataRate", "Data rate. Recommended: OfdmRate1_2MbpsBW1MHz, OfdmRate7_8MbpsBW2MHz", propagationModel);
+	cmd.AddValue("dataRatePHY", "Data rate. Recommended: OfdmRate1_2MbpsBW1MHz, OfdmRate7_8MbpsBW2MHz", dataRate);
 	// cmd.Parse(argc, argv);
 	// CommandLine arguments are processed by Configuration.
 
@@ -1197,7 +1295,8 @@ int main(int argc, char *argv[]) {
 	WaypointController controller(wifiApNode.Get(0), uavWaypoints, uavSpeed);
 
   	//Simulator::Schedule(MilliSeconds(1000), &ToggleAPPosition);
-	Simulator::Schedule(MilliSeconds(10), &CheckAssociations);
+	Simulator::Schedule(Seconds(0), &CheckAssociations);
+	Simulator::Schedule(Seconds(0), &TriggerReassociation);
 
 	// *************
 	// CHANNEL 
@@ -1257,12 +1356,19 @@ int main(int argc, char *argv[]) {
 
 	wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager", "DataMode", DataRateSV, "ControlMode", DataRateSV);	
 
-	mac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid), "ActiveProbing",
-			BooleanValue(false));
+	mac.SetType(
+		"ns3::StaWifiMac", 
+		"Ssid", SsidValue(ssid), 
+		"ActiveProbing",BooleanValue(true),
+		"MaxMissedBeacons", UintegerValue(3), // Default 10
+		"ProbeRequestTimeout", TimeValue(Seconds(0.03)), // Default 0.05
+		"AssocRequestTimeout", TimeValue(Seconds(0.3)) // Default 0.5
+	);
 
 	NetDeviceContainer staDevice;
 	staDevice = wifi.Install(phy, mac, wifiStaNode);
 
+	config.BeaconInterval = 50000; // 50ms, unit is us
 	mac.SetType("ns3::ApWifiMac",
 				"Ssid", SsidValue (ssid),
 				"BeaconInterval", TimeValue (MicroSeconds(config.BeaconInterval)),
@@ -1364,15 +1470,19 @@ int main(int argc, char *argv[]) {
     Vector apposition = mobility1->GetPosition();
     mobility1->SetPosition(apposition);
 
-
 	sendStatistics(false);
-
-
 
 	// ******************
 	//  SIMULATION
 	// ******************
-    Simulator::Schedule(Seconds(timeOut), &AssocTimeoutStartSending);
+
+	//configureTCPSensorServer();
+	configurePacketSink();
+	//configureUDPServer();
+	//configureTCPSensorClients();
+	//configureBulkSendApplications(); // Handled by onSTAAssociated()
+	//configureUDPClientApplications(); // Handled by onSTAAssociated()
+
 
 	// Initialize progress bar
 	simulationStartTime = std::chrono::steady_clock::now();

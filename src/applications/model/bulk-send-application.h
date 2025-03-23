@@ -99,9 +99,9 @@ public:
    */
   Ptr<Socket> GetSocket (void) const;
 
-protected:
+//protected:
   virtual void DoDispose (void);
-private:
+//private:
   // inherited from Application base class.
   virtual void StartApplication (void);    // Called at time specified by Start
   virtual void StopApplication (void);     // Called at time specified by Stop
@@ -122,7 +122,7 @@ private:
   /// Traced Callback: sent packets
   TracedCallback<Ptr<const Packet> > m_txTrace;
 
-private:
+//private:
   /**
    * \brief Connection Succeeded (called by Socket through a callback)
    * \param socket the connected socket

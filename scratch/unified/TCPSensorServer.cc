@@ -46,7 +46,7 @@ void TCPSensorServer::OnDataReceived(ns3::Address from) {
                 completeMessage = completeMessage.substr(startPos);
             }
             
-            //std::cout << "Received from client " << from << " following msg: " << completeMessage << std::endl;
+            std::cout << "Received from client " << from << " following msg: " << completeMessage << std::endl;
             
             // Remove processed message and its terminator
             partialBytesReceived[from] = partialBytesReceived[from].substr(endPos + 1);
