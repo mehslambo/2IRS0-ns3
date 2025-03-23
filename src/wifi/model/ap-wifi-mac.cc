@@ -1477,7 +1477,9 @@ ApWifiMac::Receive (Ptr<Packet> packet, const WifiMacHeader *hdr)
             {
               if (m_stationManager->IsAssociated (from))
                 {
-                  return;  //test, avoid repeate assoc
+                  // Reset the station state to allow re-association.
+                  m_stationManager->Reset (from);
+                  //return;  //test, avoid repeate assoc
                  }
                //NS_LOG_LOGIC ("Received AssocReq "); // for test
               //first, verify that the the station's supported

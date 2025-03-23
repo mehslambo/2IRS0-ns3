@@ -157,10 +157,11 @@ bool IsAssoc(uint16_t staid)
 	return false;
 }
 
-void UpdateProgressBar() {
-    if (!progressBarEnabled) return;
-    
-    Time currentSimTime = Simulator::Now();
+
+uint32_t packetSinkCountsPerStation[MaxSta];
+
+void DisplayProgressBar() {
+	Time currentSimTime = Simulator::Now();
     auto realTimeNow = std::chrono::steady_clock::now();
     
     double elapsedRealTime = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -198,9 +199,34 @@ void UpdateProgressBar() {
     std::cout << "] ";
     
     std::cout << "Est: " << hours << "h " << minutes << "m " << seconds << "s" << std::endl << std::flush;
+
+}
+
+void DisplayAssociations();
+
+void UpdateProgressBar() {
+    if (!progressBarEnabled) return;
+
+	// CSI[2J clears screen, CSI[H moves the cursor to top-left corner
+    std::cout << "\x1B[2J\x1B[H";
+
+	DisplayProgressBar();
+	std::cout << std::endl;
+
+	// Disabled to speed up matrix testing
+	//DisplayAssociations();
+	//std::cout << std::endl;
+
+	/*
+	// Disabled to speed up matrix testing
+	std::cout<<"Application packet received counts: ";
+	for (uint32_t i = 0; i < wifiStaNode.GetN(); i++) 
+		std::cout<<packetSinkCountsPerStation[i]<<" ";
+	std::cout<<std::endl;
+	*/
     
     // Schedule the next progress bar update
-    if (currentSimTime < stopTime) {
+    if (Simulator::Now() < stopTime) {
         Simulator::Schedule(MilliSeconds(1000), &UpdateProgressBar);
     }
 }
@@ -865,18 +891,12 @@ void wireTCPClient(ApplicationContainer clientApp, int i) {
 	*/
 }
 
-uint32_t packetSinkCountsPerStation[MaxSta];
 
 void ApplicationPacketReceivedCallback(Ptr<const Packet> packet, const Address& from)
 {
 	int staId = getSTAIdFromAddress(InetSocketAddress::ConvertFrom(from).GetIpv4());
 	if (staId != -1)
 		packetSinkCountsPerStation[staId]++;
-
-	std::cout<<"Application packet received counts: ";
-	for (uint32_t i = 0; i < wifiStaNode.GetN(); i++) 
-		std::cout<<packetSinkCountsPerStation[i]<<" ";
-	std::cout<<std::endl;
 	/*
 	    std::cout << "PacketSink received " << packet->GetSize() 
               << " bytes from " << InetSocketAddress::ConvertFrom(from).GetIpv4()
@@ -894,8 +914,9 @@ void configurePacketSink() {
   sinkApp.Start(Seconds(0.0));
   sinkApp.Stop(stopTime);
   
-  // Connect using our new callback with exact signature
-  sinkApp.Get(0)->TraceConnectWithoutContext("Rx", MakeCallback(&ApplicationPacketReceivedCallback));
+  // Add a cout for whenever the sink receives a packet
+  // Disabled to speed up matrix testing
+  //sinkApp.Get(0)->TraceConnectWithoutContext("Rx", MakeCallback(&ApplicationPacketReceivedCallback));
   
   std::cout << "Packet sink configured on AP at port 84" << std::endl;
 }
@@ -905,7 +926,7 @@ void OnApplicationPacketSent(Ptr<const Packet> packet) {
 }
 
 void configureBulkSendApplication(int staId) {
-	if (!IsAssoc(staId) || wifiStaNode.Get(staId)->GetNApplications() > 0)
+	if (!IsAssoc(staId))
 		return;
 	std::cout << "Installing bulk send on station " << staId << std::endl;
 	// Get the address of the station using the IPv4 interface we created
@@ -924,7 +945,8 @@ void configureBulkSendApplication(int staId) {
 	app->SetStopTime(stopTime); 
 
 	// Add a cout for whenever bulkSend sends something
-	app->TraceConnectWithoutContext("Tx", MakeCallback(&OnApplicationPacketSent));
+  	// Disabled to speed up matrix testing
+	//app->TraceConnectWithoutContext("Tx", MakeCallback(&OnApplicationPacketSent));
 }
 
 void configureBulkSendApplications() {
@@ -940,15 +962,16 @@ void configureUDPServer() {
 	serverApp.Start(Seconds(0.0));
 	serverApp.Stop(stopTime);
 
-	// Connect using our new callback with exact signature
-	serverApp.Get(0)->TraceConnectWithoutContext("Rx", MakeCallback(&ApplicationPacketReceivedCallback));
+	// Add a cout for whenever the server receives a packet
+	// Disabled to speed up matrix testing
+	//serverApp.Get(0)->TraceConnectWithoutContext("Rx", MakeCallback(&ApplicationPacketReceivedCallback));
 
 	std::cout << "UDP server configured on AP at port 7" << std::endl;
 }
 
 
 void configureUDPClientApplication(int staId) {
-	if (!IsAssoc(staId) || wifiStaNode.Get(staId)->GetNApplications() > 0)
+	if (!IsAssoc(staId))
 		return;
 	std::cout << "Installing UDP client on station " << staId << std::endl;
 	// Get the address of the station using the IPv4 interface we created
@@ -962,7 +985,9 @@ void configureUDPClientApplication(int staId) {
   	clientApps.Start(Seconds(0.0));
   	clientApps.Stop(stopTime);
 
-	clientApps.Get(0)->TraceConnectWithoutContext("Tx", MakeCallback(&OnApplicationPacketSent));
+	// Add a cout for whenever the client sends a packet
+ 	// Disabled to speed up matrix testing
+	//clientApps.Get(0)->TraceConnectWithoutContext("Tx", MakeCallback(&OnApplicationPacketSent));
 }
 
 void destroyAllApplications(int staId) {
@@ -1072,7 +1097,7 @@ void ToggleAPPosition() {
 }
 
 // Checks association status for each station node
-void CheckAssociations() {
+void DisplayAssociations() {
 	// Get AP position
 	Ptr<MobilityModel> apMob = wifiApNode.Get(0)->GetObject<MobilityModel>();
 	Vector apPos = apMob->GetPosition();
@@ -1119,7 +1144,6 @@ void CheckAssociations() {
 		else 
 			std::cout<<"Station " << i << " is currently deassociated (distance=" << distance << ", internal state=" << macStateString << ")"<<std::endl;
 	}
-	Simulator::Schedule(Seconds(0.5), &CheckAssociations);
 }
 
 void TriggerReassociation() {
@@ -1151,7 +1175,7 @@ void TriggerReassociation() {
 					//staMac->TryToEnsureAssociated();
 
 					// APPROACH 3
-					staMac->StartActiveAssociation();
+					//staMac->StartActiveAssociation();
                 }
             }
         }
@@ -1264,8 +1288,8 @@ int main(int argc, char *argv[]) {
 	mobilityAp.Install(wifiApNode);
 
     // Add position logging
-    PositionLogging posLogger(scenarioLogName.str(), MilliSeconds(500));
-    posLogger.EnableLogging();
+    //PositionLogging posLogger(scenarioLogName.str(), MilliSeconds(500));
+    //posLogger.EnableLogging();
 
 	// Position all STAs in a zig-zag pattern
 	std::vector<Vector> uavWaypoints = {};
@@ -1295,7 +1319,6 @@ int main(int argc, char *argv[]) {
 	WaypointController controller(wifiApNode.Get(0), uavWaypoints, uavSpeed);
 
   	//Simulator::Schedule(MilliSeconds(1000), &ToggleAPPosition);
-	Simulator::Schedule(Seconds(0), &CheckAssociations);
 	Simulator::Schedule(Seconds(0), &TriggerReassociation);
 
 	// *************
@@ -1416,8 +1439,8 @@ int main(int argc, char *argv[]) {
 	packetLoggerStats.EnableLogging();
 
 	// Install the power sniffers
-	PowerLogging powerLogger(scenarioLogName.str(), wifiStaNode, wifiApNode);
-	powerLogger.EnableLogging();
+	//PowerLogging powerLogger(scenarioLogName.str(), wifiStaNode, wifiApNode);
+	//powerLogger.EnableLogging();
 
 	/* Internet stack*/
 	InternetStackHelper stack;

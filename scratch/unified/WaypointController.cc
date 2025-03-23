@@ -62,7 +62,10 @@ private:
 
         // Add waypoint slightly in the future to avoid t_span == 0
         double currentTime = Simulator::Now().GetSeconds();
-        m_mobility->AddWaypoint(Waypoint(Seconds(currentTime), currentPos));
+        // Skip adding first waypoint if it's the initial position
+        if (m_index == 0 && Simulator::Now() == Seconds(0.0)) {
+            m_mobility->AddWaypoint(Waypoint(Seconds(currentTime), currentPos));
+        }
         m_mobility->AddWaypoint(Waypoint(Seconds(currentTime + travelTime), nextPos));
 
         m_index = nextIndex;
