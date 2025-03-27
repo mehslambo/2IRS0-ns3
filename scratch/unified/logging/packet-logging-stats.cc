@@ -388,14 +388,15 @@ void PacketLoggingStats::DumpPacketRecordsMeansToCsv() const {
     }
 
     // Write CSV header.
-    csvFile << "CountPacketsSentSTAToAP; CountPacketsSentAPToSTA;"
-            << "MeanPacketSizeSTAToAP; MeanPacketSizeAPToSTA;"
-            << "MeanTxBeginCountSTAToAP; MeanTxBeginCountAPToSTA;"
-            << "MeanRxEndCountSTAToAP; MeanRxEndCountAPToSTA;"
-            << "MeanRxDropCountSTAToAP; MeanRxDropCountAPToSTA;"
-            << "MeanLastRxSignalSTAToAP; MeanLastRxSignalAPToSTA;"
-            << "MeanDistanceSTAToAP; MeanDistanceAPToSTA;"
-            << "MeanThroughputSTAToAP; MeanThroughputAPToSTA" << std::endl;
+    csvFile << "CountPacketsSentSTAToAP;CountPacketsSentAPToSTA;"
+            << "MeanPacketSizeSTAToAP;MeanPacketSizeAPToSTA;"
+            << "MeanTxBeginCountSTAToAP;MeanTxBeginCountAPToSTA;"
+            << "MeanRxEndCountSTAToAP;MeanRxEndCountAPToSTA;"
+            << "MeanRxDropCountSTAToAP;MeanRxDropCountAPToSTA;"
+            << "MeanLastRxSignalSTAToAP;MeanLastRxSignalAPToSTA;"
+            << "MeanLatencySTAToAP;MeanLatencyAPToSTA;"
+            << "MeanDistanceSTAToAP;MeanDistanceAPToSTA;"
+            << "MeanThroughputSTAToAP;MeanThroughputAPToSTA" << std::endl;
 
     // Calculate summary statistics.
     uint32_t countPacketsSentSTAToAP = 0;
@@ -412,6 +413,8 @@ void PacketLoggingStats::DumpPacketRecordsMeansToCsv() const {
     double sumLastRxSignalAPToSTA = 0;
     double sumDistanceSTAToAP = 0;
     double sumDistanceAPToSTA = 0;
+    Time sumLatencySTAToAP = Seconds(0);
+    Time sumLatencyAPToSTA = Seconds(0);
     double sumThroughputSTAToAP = 0;
     double sumThroughputAPToSTA= 0;
 
@@ -427,7 +430,9 @@ void PacketLoggingStats::DumpPacketRecordsMeansToCsv() const {
             sumRxDropCountSTAToAP += record.rxDropCount;
             sumLastRxSignalSTAToAP += record.lastRxSignal;
             sumDistanceSTAToAP += CalculateDistance(record.srcCoordinates, record.dstCoordinates);
-            double throughput = record.packetSize / (record.rxEndLastSeen - record.txBeginFirstSeen).GetSeconds();  // Bytes per second
+            Time latency = record.rxEndLastSeen - record.txBeginFirstSeen;
+            sumLatencySTAToAP += latency;
+            double throughput = record.packetSize / latency.GetSeconds();  // Bytes per second
             sumThroughputSTAToAP += throughput;
         } else if (record.sourceNodeType == "AP" && record.destinationNodeType == "STA") {
             countPacketsSentAPToSTA++;
@@ -437,6 +442,8 @@ void PacketLoggingStats::DumpPacketRecordsMeansToCsv() const {
             sumRxDropCountAPToSTA += record.rxDropCount;
             sumLastRxSignalAPToSTA += record.lastRxSignal;
             sumDistanceAPToSTA += CalculateDistance(record.srcCoordinates, record.dstCoordinates);
+            Time latency = record.rxEndLastSeen - record.txBeginFirstSeen;
+            sumLatencyAPToSTA += latency;
             double throughput = record.packetSize / (record.rxEndLastSeen - record.txBeginFirstSeen).GetSeconds();  // Bytes per second
             sumThroughputAPToSTA += throughput;
         }
@@ -455,6 +462,8 @@ void PacketLoggingStats::DumpPacketRecordsMeansToCsv() const {
             << sumRxDropCountAPToSTA / countPacketsSentAPToSTA << ";"
             << sumLastRxSignalSTAToAP / countPacketsSentSTAToAP << ";"
             << sumLastRxSignalAPToSTA / countPacketsSentAPToSTA << ";"
+            << sumLatencySTAToAP / countPacketsSentSTAToAP << ";"
+            << sumLatencyAPToSTA / countPacketsSentAPToSTA << ";"
             << sumDistanceSTAToAP / countPacketsSentSTAToAP << ";"
             << sumDistanceAPToSTA / countPacketsSentAPToSTA << ";"
             << sumThroughputSTAToAP / countPacketsSentSTAToAP << ";"
