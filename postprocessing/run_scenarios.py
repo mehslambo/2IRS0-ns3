@@ -6,6 +6,65 @@ import time
 import select
 import numpy as np
 
+def get_scenario_commands():
+    scenario_name = "unified"
+    
+    # Independent variables
+    independent_vars = {
+        "nodeXCount" : range(1, 30),
+        "nodeXOffset": [-1.8 / 2],
+        "nodeYOffset": [-1.8 / 2],
+        "nodeZCount": [1],
+        "nodeZSpacing": [1],
+        "nodeZOffset": list(np.arange(0, -1.8, -0.05)),
+        "auvSpeed": [0],
+        "propagationModel": ["freshwater"],
+        "stopTime": [10*60],  # seconds
+        "channelWidth": [1],
+        "packetStatsConfig": ["means"],
+        "enablePositionLogging": ["true"],
+        "powerLoggingConfig": ["short"],
+        "scenarioFolderPath": ["unified_buoy"]
+    }
+
+    # Dependent variables defined via lambda functions. 
+    # Each lambda receives a dict with the current independent variables.
+    dependent_vars = {
+        # 1.8 because otherwise we'll have nodes out of range
+        "nodeXSpacing": lambda args: 1.8 / (args["nodeXCount"] - 1) if args["nodeXCount"] > 1 else 1,
+        "nodeYCount": lambda args: args["nodeXCount"],
+        "nodeYSpacing": lambda args: args["nodeXSpacing"],
+        "dataRatePHY": lambda args: "OfdmRate1_2MbpsBW1MHz" if args["channelWidth"] == 1 else "OfdmRate7_8MbpsBW2MHz",
+    }
+
+    # Build all combinations of independent variables as a list of configuration dictionaries.
+    configurations = [{}]
+    for key, values in independent_vars.items():
+        new_configurations = []
+        for config in configurations:
+            for value in values:
+                new_config = config.copy()
+                new_config[key] = value
+                new_configurations.append(new_config)
+        configurations = new_configurations
+
+    # For each configuration, calculate dependent variables.
+    for config in configurations:
+        for dep_key, formula in dependent_vars.items():
+            config[dep_key] = formula(config)
+
+    # Build the scenario commands by appending flags for each configuration.
+    scenario_commands = []
+    for config in configurations:
+        command = f'./waf --run "{scenario_name}'
+        for arg, value in config.items():
+            command += f' --{arg}={value}'
+        command += '"'
+        scenario_commands.append(command)
+
+    return scenario_commands
+
+
 def format_time(seconds):
     # Format seconds as HH:MM:SS.
     seconds = int(seconds)
@@ -30,45 +89,7 @@ def main(stdscr):
         log_dir = None
 
     # Prepare the list of commands
-    scenario_name = "unified"
-    """
-    args_matrix = {
-        "nodeXCount" : [5],
-        "nodeXSpacing" : [0.5, 1, 2, 5, 10],
-        "nodeYCount" : [5],
-        "nodeYSpacing" : [1, 10],
-        "nodeZCount" : [1],
-        "nodeZSpacing" : [1],
-        "uavSpeed" : [0.1, 0.2, 0.5],
-        "uavZOffset" : [0, -.5],
-        "propagationModel" : ["freshwater"],
-        "stopTime" : [10*60],  # seconds
-        "channelWidth" : ["1 --dataRatePHY=OfdmRate1_2MbpsBW1MHz", "2 --dataRatePHY=OfdmRate7_8MbpsBW2MHz"],
-    }
-    """
-    args_matrix = {
-        "nodeXCount" : [10],
-        "nodeXSpacing" : [0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2, 4, 10],
-        "nodeYCount": [1],
-        "nodeYSpacing": [1],
-        "nodeZCount": [1],
-        "nodeZSpacing": [1],
-        "uavSpeed": [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
-        "uavZOffset": [0, -.5],
-        "propagationModel": ["freshwater"],
-        "stopTime": [10*60],  # seconds
-        "channelWidth": ["1 --dataRatePHY=OfdmRate1_2MbpsBW1MHz", "2 --dataRatePHY=OfdmRate7_8MbpsBW2MHz"],
-    }
-
-    scenario_commands = [f'./waf --run "{scenario_name}']
-    for arg, val in args_matrix.items():
-        new_commands = []
-        for command in scenario_commands:
-            for v in val:
-                new_commands.append(f'{command} --{arg}={v}')
-        scenario_commands = new_commands
-        
-    scenario_commands = [f'{command}"' for command in scenario_commands]
+    scenario_commands = get_scenario_commands()
     total_commands = len(scenario_commands)
 
     # --- GRID LAYOUT SETUP ---
