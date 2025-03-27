@@ -1218,8 +1218,8 @@ int main(int argc, char *argv[]) {
 	config = Configuration(&cmd, argc, argv);
 	totalNodes = nodeXCount * nodeYCount * nodeZCount;
 
-	// Append current timestamp to scenario folder path
-	scenarioFolderPath = scenarioFolderPath + "_" + std::to_string(time(0));
+	// Append current timestamp to avoid name collisions
+	scenarioFolderPath = scenarioFolderPath + "_" + std::to_string(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count());
 	DumpConfig(argc, argv, scenarioFolderPath);
 
 	stopTime = Seconds(simTime);
