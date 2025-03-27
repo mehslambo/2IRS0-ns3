@@ -15,14 +15,6 @@
 
 using namespace ns3;
 
-struct MacAddresses {
-    Mac48Address receiver;
-    Mac48Address transmitter;
-    Mac48Address destination;
-    Mac48Address source;
-    Mac48Address bssid;
-};
-
 class PacketLoggingRaw {
 public:
     PacketLoggingRaw(const std::string& scenarioName, const NodeContainer& staNodes, const NodeContainer& apNodes);

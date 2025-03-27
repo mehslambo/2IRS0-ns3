@@ -1,5 +1,5 @@
-#ifndef POWER_LOGGING_H
-#define POWER_LOGGING_H
+#ifndef POWER_LOGGING_RAW_H
+#define POWER_LOGGING_RAW_H
 
 #include "ns3/core-module.h"
 #include "ns3/mobility-module.h"
@@ -9,9 +9,9 @@
 
 using namespace ns3;
 
-class PowerLogging {
+class PowerLoggingRaw {
 public:
-    PowerLogging(const std::string& scenarioName, const NodeContainer& staNodes, const NodeContainer& apNodes);
+    PowerLoggingRaw(const std::string& scenarioName, const NodeContainer& staNodes, const NodeContainer& apNodes);
     void EnableLogging();
     
 private:
@@ -27,4 +27,4 @@ private:
     void WriteHeader();
 };
 
-#endif // POWER_LOGGING_H
+#endif // POWER_LOGGING_RAW_H

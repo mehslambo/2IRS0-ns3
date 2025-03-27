@@ -33,14 +33,17 @@
 #include "ns3/yans-wifi-helper.h"
 #include "ns3/wifi-phy.h"
 #include "ns3/wifi-mac-header.h"
-//#include "logging/packet-logging-raw.h"
-//#include "logging/packet-logging-raw.cc"
+#include "logging/mac-addresses.h"
+#include "logging/packet-logging-raw.h"
+#include "logging/packet-logging-raw.cc"
 #include "logging/packet-logging-stats.h"
 #include "logging/packet-logging-stats.cc"
 #include "logging/position-logging.h"
 #include "logging/position-logging.cc"
-#include "logging/power-logging.h"
-#include "logging/power-logging.cc"
+#include "logging/power-logging-raw.h"
+#include "logging/power-logging-raw.cc"
+#include "logging/power-logging-stats.h"
+#include "logging/power-logging-stats.cc"
 #include "WaypointController.cc"
 #include <cstring>
 #include <string.h>
@@ -83,8 +86,8 @@ double nodeZSpacing = 0.0;
 int nodeXCount = 20;
 int nodeYCount = 10;
 int nodeZCount = 1;
-double uavSpeed = 0.1; // m/s
-double uavZOffset = 0;
+double auvSpeed = 0.1; // m/s
+double auvZOffset = 0;
 
 std::string propagationModel = "air"; // Valid values are "air" and "freshwater"
 
@@ -996,7 +999,7 @@ void destroyAllApplications(int staId) {
 	
 	// Clear the applications from the nodes that are not associated
 	for (uint32_t appCnt = 0; appCnt < wifiStaNode.Get(staId)->GetNApplications(); appCnt++) {
-		std::cout << "Disabling app " << appCnt << " from station " << staId << std::endl;
+		//std::cout << "Disabling app " << appCnt << " on station " << staId << std::endl;
 		wifiStaNode.Get(staId)->GetApplication(appCnt)->SetStopTime(Simulator::Now());
 		//wifiStaNode.Get(staId)->GetApplication(appCnt)->Dispose();
 	}
@@ -1147,6 +1150,35 @@ void DisplayAssociations() {
 	}
 }
 
+void DumpConfig(int argc, char *argv[], std::string scenarioFolder) {
+	// Create path with timestamp
+    std::string baseLogPath = "postprocessing/logs/" + scenarioFolder;
+
+    // Create logging directory if it doesn't exist
+    std::string cmd = "mkdir -p " + baseLogPath;
+    int result = system(cmd.c_str());
+    if (result != 0) {
+        std::cout<<"Failed to create logging directory: " << baseLogPath<<std::endl;
+    }
+
+    std::string logFilePath = baseLogPath + "/SimConfig.txt";
+    
+    // Open log file
+    std::ofstream logFile;
+	logFile.open(logFilePath, std::ios::out | std::ios::trunc);
+    if (!logFile.is_open()) {
+        std::cout<<"Failed to open log file: " << logFilePath<<std::endl;
+    }
+
+	// Write config as key-value pairs
+	for (int i = 1; i < argc; i++) {
+		logFile << argv[i] << "\n";
+	}
+	logFile << std::endl;
+
+	logFile.close();
+}
+
 int main(int argc, char *argv[]) {
 	//LogComponentEnable("TCPSensorServer", LOG_ALL);
 	//LogComponentEnable("TCPSensorClient", LOG_ALL);
@@ -1154,6 +1186,10 @@ int main(int argc, char *argv[]) {
 
 	uint32_t channelWidth = 1;
 	std::string dataRate = "OfdmRate1_2MbpsBW1MHz";
+	std::string scenarioFolderPath = "unified";
+	std::string packetStatsConfig = "means";  // all/short/means
+	bool enablePositionLogging = false;
+	std::string powerLoggingConfig = "short";  // all/short
 
 	CommandLine cmd;
 	cmd.AddValue("sensors", "Number of sensors", totalNodes);
@@ -1166,32 +1202,25 @@ int main(int argc, char *argv[]) {
 	cmd.AddValue("nodeXCount", "Number of nodes in the x axis", nodeXCount);
 	cmd.AddValue("nodeYCount", "Number of nodes in the y axis", nodeYCount);
 	cmd.AddValue("nodeZCount", "Number of nodes in the z axis", nodeZCount);
-	cmd.AddValue("uavSpeed", "The speed of the UAV (in m/s)", uavSpeed);
-	cmd.AddValue("uavZOffset", "The depth at which the UAV operates at (should be -)", uavZOffset);
+	cmd.AddValue("auvSpeed", "The speed of the auv (in m/s). If 0 a ConstantPositionMobilityModel is used.", auvSpeed);
+	cmd.AddValue("auvZOffset", "The depth at which the AUV operates at (should be -)", auvZOffset);
 	cmd.AddValue("stopTime", "Simulation time in seconds", simTime);
 	cmd.AddValue("propagationModel", "Propagation model (air/freshwater)", propagationModel);
 	cmd.AddValue("channelWidth", "1/2 MHz", channelWidth);
 	cmd.AddValue("dataRatePHY", "Data rate. Recommended: OfdmRate1_2MbpsBW1MHz, OfdmRate7_8MbpsBW2MHz", dataRate);
+	cmd.AddValue("scenarioFolderPath", "Path for the scenario folder (no trailing /)", scenarioFolderPath);
+	cmd.AddValue("packetStatsConfig", "Packet stats configuration (all/short/means)", packetStatsConfig);
+	cmd.AddValue("enablePositionLogging", "Enable position logging", enablePositionLogging);
+	cmd.AddValue("powerLoggingConfig", "Power logging configuration (all/short)", powerLoggingConfig);
 	// cmd.Parse(argc, argv);
 	// CommandLine arguments are processed by Configuration.
 
 	config = Configuration(&cmd, argc, argv);
 	totalNodes = nodeXCount * nodeYCount * nodeZCount;
 
-	std::ostringstream argStream;
-	for (int i = 1; i < argc; i++) { // Skip argv[0] (program name)
-		if (i > 1) argStream << "_"; // Add space between arguments
-		
-		// Sanitize the string to make it suitable for filenames
-		std::string arg = argv[i];
-		std::string cleanArg;
-		for (char c : arg) {
-			if (c != '-')
-				cleanArg += c;
-		}
-		
-		argStream << cleanArg;
-	}
+	// Append current timestamp to scenario folder path
+	scenarioFolderPath = scenarioFolderPath + "_" + std::to_string(time(0));
+	DumpConfig(argc, argv, scenarioFolderPath);
 
 	stopTime = Seconds(simTime);
 	config.rps = configureRAW(config.rps, config.RAWConfigFile);
@@ -1228,10 +1257,6 @@ int main(int argc, char *argv[]) {
 	transmissionsPerTIMGroupAndSlotFromSTASinceLastInterval = vector<long>(
 			config.totalRawSlots, 0);
 
-	// Create a string with the scenario's name to be used in the log files
-	std::stringstream scenarioLogName;
-	scenarioLogName << "unified/" << propagationModel << "/" << argStream.str();
-
 	wifiStaNode.Create(totalNodes);
 	wifiApNode.Create(gateways * gateways);
 
@@ -1244,24 +1269,29 @@ int main(int argc, char *argv[]) {
 	mobilitySta.Install(wifiStaNode);
 
 	MobilityHelper mobilityAp;
-	mobilityAp.SetMobilityModel("ns3::WaypointMobilityModel");
+	if (auvSpeed == 0)
+		mobilityAp.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+	else
+		mobilityAp.SetMobilityModel("ns3::WaypointMobilityModel");
 	mobilityAp.Install(wifiApNode);
 
     // Add position logging
-    //PositionLogging posLogger(scenarioLogName.str(), MilliSeconds(500));
-    //posLogger.EnableLogging();
+	PositionLogging posLogger(scenarioFolderPath, MilliSeconds(500));
+	if (enablePositionLogging) {
+		posLogger.EnableLogging();
+	}
 
 	// Position all STAs in a zig-zag pattern
-	std::vector<Vector> uavWaypoints = {};
+	std::vector<Vector> auvWaypoints = {};
 
 	for (int i = 0; i < nodeXCount; i++) {
         bool reverseY = (i % 2 != 0);
         for (int j = reverseY ? nodeYCount - 1 : 0; reverseY ? j >= 0 : j < nodeYCount; reverseY ? j-- : j++) {
             bool reverseZ = (j % 2 != 0);
             for (int k = reverseZ ? nodeZCount - 1 : 0; reverseZ ? k >= 0 : k < nodeZCount; reverseZ ? k-- : k++) {
-				Ptr<MobilityModel> mob = wifiStaNode.Get(uavWaypoints.size())->GetObject<MobilityModel>();
+				Ptr<MobilityModel> mob = wifiStaNode.Get(auvWaypoints.size())->GetObject<MobilityModel>();
 		
-				// Create a zig-zag pattern to optimize the UAV's path
+				// Create a zig-zag pattern to optimize the AUV's path
 				double x = nodeXOffset + i * nodeXSpacing;
                 double y = nodeYOffset + j * nodeYSpacing;
                 double z = nodeZOffset + k * nodeZSpacing;
@@ -1269,14 +1299,23 @@ int main(int argc, char *argv[]) {
 				// Set position for current node
 				mob->SetPosition(Vector(x, y, z));
 				
-				// Add waypoint for the UAV
-				uavWaypoints.push_back(Vector(x, y, uavZOffset));
+				// Add waypoint for the AUV
+				auvWaypoints.push_back(Vector(x, y, auvZOffset));
             }
         }
     }
 
-	// Create the waypoint controller
-	WaypointController controller(wifiApNode.Get(0), uavWaypoints, uavSpeed);
+	
+	if (auvSpeed == 0)
+		wifiApNode.Get(0)->GetObject<MobilityModel>()->SetPosition(Vector(0,0,0));
+	else 
+		// Create the waypoint controller
+		WaypointController controller(wifiApNode.Get(0), auvWaypoints, auvSpeed);
+
+	// Force a position update to log the positions at T=0		
+	Ptr<MobilityModel> mobility1 = wifiApNode.Get(0)->GetObject<MobilityModel>();
+    Vector apposition = mobility1->GetPosition();
+    mobility1->SetPosition(apposition);
 
   	//Simulator::Schedule(MilliSeconds(1000), &ToggleAPPosition);
 
@@ -1307,7 +1346,7 @@ int main(int argc, char *argv[]) {
 		channel->SetPropagationDelayModel(underwaterDelay);
 	} else {
 		std::cout<<"Invalid propagation model specified"<<std::endl;
-		return 0;
+		return 1;
 	}
 	channel->TraceConnectWithoutContext("Transmission",
 			MakeCallback(&onChannelTransmission)); //TODO
@@ -1392,14 +1431,29 @@ int main(int argc, char *argv[]) {
 	Config::ConnectWithoutContext(oss.str() + "RawSlot", MakeCallback(&RawSlotTrace));
 
 	// Install the packet sniffers
-	//PacketLoggingRaw packetLogger(scenarioLogName.str(), wifiStaNode, wifiApNode);
-	//packetLogger.EnableLogging();
-	PacketLoggingStats packetLoggerStats(scenarioLogName.str(), wifiStaNode, wifiApNode);
-	packetLoggerStats.EnableLogging();
+	PacketLoggingRaw packetLogger(scenarioFolderPath, wifiStaNode, wifiApNode);
+	PacketLoggingStats packetLoggerStats(scenarioFolderPath, wifiStaNode, wifiApNode);
+	if (packetStatsConfig == "all") {
+		packetLogger.EnableLogging();
+	} else if (packetStatsConfig == "short" || packetStatsConfig == "means") {
+		packetLoggerStats.EnableLogging();
+	} else {
+		std::cout << "Invalid packet stats configuration specified" << std::endl;
+		return 1;
+	}
 
 	// Install the power sniffers
-	//PowerLogging powerLogger(scenarioLogName.str(), wifiStaNode, wifiApNode);
-	//powerLogger.EnableLogging();
+	PowerLoggingRaw powerLogger(scenarioFolderPath, wifiStaNode, wifiApNode);
+	PowerLoggingStats powerLoggerStats(scenarioFolderPath, wifiStaNode, wifiApNode);
+	if (powerLoggingConfig == "all") {
+		powerLogger.EnableLogging();
+	} else if (powerLoggingConfig == "short") {
+		powerLoggerStats.EnableLogging();
+	} else {
+		std::cout << "Invalid power logging configuration specified" << std::endl;
+		return 1;
+	}
+	
 
 	/* Internet stack*/
 	InternetStackHelper stack;
@@ -1447,11 +1501,6 @@ int main(int argc, char *argv[]) {
 			MakeCallback(&OnAPPacketToTransmitReceived));
 
 
-	// Force a position update to log the positions at T=0		
-	Ptr<MobilityModel> mobility1 = wifiApNode.Get(0)->GetObject<MobilityModel>();
-    Vector apposition = mobility1->GetPosition();
-    mobility1->SetPosition(apposition);
-
 	sendStatistics(false);
 
 	// ******************
@@ -1478,7 +1527,15 @@ int main(int argc, char *argv[]) {
 	// END OF SIM CODE
 	// ******************
 
-	packetLoggerStats.DumpPacketRecordsToCsv();
+	if (packetStatsConfig == "short") {
+		packetLoggerStats.DumpPacketRecordsToCsv();
+	} else if (packetStatsConfig == "means") {
+		packetLoggerStats.DumpPacketRecordsMeansToCsv();
+	}
+
+	if (powerLoggingConfig == "short") {
+		powerLoggerStats.DumpPowerRecordsToCsv();
+	}
 
 	Simulator::Destroy();
 	std::cout << "Simulation ended gracefully" << std::endl;

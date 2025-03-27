@@ -31,6 +31,7 @@ def main(stdscr):
 
     # Prepare the list of commands
     scenario_name = "unified"
+    """
     args_matrix = {
         "nodeXCount" : [5],
         "nodeXSpacing" : [0.5, 1, 2, 5, 10],
@@ -43,6 +44,20 @@ def main(stdscr):
         "propagationModel" : ["freshwater"],
         "stopTime" : [10*60],  # seconds
         "channelWidth" : ["1 --dataRatePHY=OfdmRate1_2MbpsBW1MHz", "2 --dataRatePHY=OfdmRate7_8MbpsBW2MHz"],
+    }
+    """
+    args_matrix = {
+        "nodeXCount" : [10],
+        "nodeXSpacing" : [0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2, 4, 10],
+        "nodeYCount": [1],
+        "nodeYSpacing": [1],
+        "nodeZCount": [1],
+        "nodeZSpacing": [1],
+        "uavSpeed": [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
+        "uavZOffset": [0, -.5],
+        "propagationModel": ["freshwater"],
+        "stopTime": [10*60],  # seconds
+        "channelWidth": ["1 --dataRatePHY=OfdmRate1_2MbpsBW1MHz", "2 --dataRatePHY=OfdmRate7_8MbpsBW2MHz"],
     }
 
     scenario_commands = [f'./waf --run "{scenario_name}']

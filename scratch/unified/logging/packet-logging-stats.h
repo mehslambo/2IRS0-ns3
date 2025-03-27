@@ -9,15 +9,6 @@
 
 using namespace ns3;
 
-// A simple struct to hold MAC addresses extracted from a Wifi header.
-struct MacAddresses {
-    Mac48Address receiver;
-    Mac48Address transmitter;
-    Mac48Address destination;
-    Mac48Address source;
-    Mac48Address bssid;
-};
-
 struct PacketRecord {
     uint32_t packetId;
     uint32_t packetSize;
@@ -57,6 +48,8 @@ public:
     void DumpPacketRecords() const;
     // Dump the packet records to a CSV file.
     void DumpPacketRecordsToCsv() const;
+    // Dump the means of packet records to a CSV file.
+    void DumpPacketRecordsMeansToCsv() const;
 
 private:
     std::string m_scenarioName;

@@ -370,3 +370,96 @@ void PacketLoggingStats::DumpPacketRecordsToCsv() const
 
     csvFile.close();
 }
+
+void PacketLoggingStats::DumpPacketRecordsMeansToCsv() const {
+    std::string baseLogPath = "postprocessing/logs/" + m_scenarioName;
+    // Create logging directory if it doesn't exist
+    std::string cmd = "mkdir -p " + baseLogPath;
+    int result = system(cmd.c_str());
+    if (result != 0) {
+        std::cout << "Failed to create logging directory: " << baseLogPath << std::endl;
+    }
+    
+    std::string filename = baseLogPath + "/PacketLoggingStatsSummary.csv";
+    std::ofstream csvFile(filename.c_str());
+    if (!csvFile.is_open()) {
+        std::cerr << "Failed to open CSV file for writing: " << filename << std::endl;
+        return;
+    }
+
+    // Write CSV header.
+    csvFile << "CountPacketsSentSTAToAP; CountPacketsSentAPToSTA;"
+            << "MeanPacketSizeSTAToAP; MeanPacketSizeAPToSTA;"
+            << "MeanTxBeginCountSTAToAP; MeanTxBeginCountAPToSTA;"
+            << "MeanRxEndCountSTAToAP; MeanRxEndCountAPToSTA;"
+            << "MeanRxDropCountSTAToAP; MeanRxDropCountAPToSTA;"
+            << "MeanLastRxSignalSTAToAP; MeanLastRxSignalAPToSTA;"
+            << "MeanDistanceSTAToAP; MeanDistanceAPToSTA;"
+            << "MeanThroughputSTAToAP; MeanThroughputAPToSTA" << std::endl;
+
+    // Calculate summary statistics.
+    uint32_t countPacketsSentSTAToAP = 0;
+    uint32_t countPacketsSentAPToSTA = 0;
+    double sumPacketSizeSTAToAP = 0;
+    double sumPacketSizeAPToSTA = 0;
+    uint32_t sumTxBeginCountSTAToAP = 0;
+    uint32_t sumTxBeginCountAPToSTA = 0;
+    uint32_t sumRxEndCountSTAToAP = 0;
+    uint32_t sumRxEndCountAPToSTA = 0;
+    uint32_t sumRxDropCountSTAToAP = 0;
+    uint32_t sumRxDropCountAPToSTA = 0;
+    double sumLastRxSignalSTAToAP = 0;
+    double sumLastRxSignalAPToSTA = 0;
+    double sumDistanceSTAToAP = 0;
+    double sumDistanceAPToSTA = 0;
+    double sumThroughputSTAToAP = 0;
+    double sumThroughputAPToSTA= 0;
+
+    // Go through each each packet record.
+    for (std::map<uint32_t, PacketRecord>::const_iterator it = m_packetRecords.begin();
+         it != m_packetRecords.end(); ++it) {
+        const PacketRecord& record = it->second;
+        if (record.sourceNodeType == "STA" && record.destinationNodeType == "AP") {
+            countPacketsSentSTAToAP++;
+            sumPacketSizeSTAToAP += record.packetSize;
+            sumTxBeginCountSTAToAP += record.txBeginCount;
+            sumRxEndCountSTAToAP += record.rxEndCount;
+            sumRxDropCountSTAToAP += record.rxDropCount;
+            sumLastRxSignalSTAToAP += record.lastRxSignal;
+            sumDistanceSTAToAP += CalculateDistance(record.srcCoordinates, record.dstCoordinates);
+            double throughput = record.packetSize / (record.rxEndLastSeen - record.txBeginFirstSeen).GetSeconds();  // Bytes per second
+            sumThroughputSTAToAP += throughput;
+        } else if (record.sourceNodeType == "AP" && record.destinationNodeType == "STA") {
+            countPacketsSentAPToSTA++;
+            sumPacketSizeAPToSTA += record.packetSize;
+            sumTxBeginCountAPToSTA += record.txBeginCount;
+            sumRxEndCountAPToSTA += record.rxEndCount;
+            sumRxDropCountAPToSTA += record.rxDropCount;
+            sumLastRxSignalAPToSTA += record.lastRxSignal;
+            sumDistanceAPToSTA += CalculateDistance(record.srcCoordinates, record.dstCoordinates);
+            double throughput = record.packetSize / (record.rxEndLastSeen - record.txBeginFirstSeen).GetSeconds();  // Bytes per second
+            sumThroughputAPToSTA += throughput;
+        }
+    }
+
+    // Write summary statistics to CSV.
+    csvFile << countPacketsSentSTAToAP << ";"
+            << countPacketsSentAPToSTA << ";"
+            << sumPacketSizeSTAToAP / countPacketsSentSTAToAP << ";"
+            << sumPacketSizeAPToSTA / countPacketsSentAPToSTA << ";"
+            << sumTxBeginCountSTAToAP / countPacketsSentSTAToAP << ";"
+            << sumTxBeginCountAPToSTA / countPacketsSentAPToSTA << ";"
+            << sumRxEndCountSTAToAP / countPacketsSentSTAToAP << ";"
+            << sumRxEndCountAPToSTA / countPacketsSentAPToSTA << ";"
+            << sumRxDropCountSTAToAP / countPacketsSentSTAToAP << ";"
+            << sumRxDropCountAPToSTA / countPacketsSentAPToSTA << ";"
+            << sumLastRxSignalSTAToAP / countPacketsSentSTAToAP << ";"
+            << sumLastRxSignalAPToSTA / countPacketsSentAPToSTA << ";"
+            << sumDistanceSTAToAP / countPacketsSentSTAToAP << ";"
+            << sumDistanceAPToSTA / countPacketsSentAPToSTA << ";"
+            << sumThroughputSTAToAP / countPacketsSentSTAToAP << ";"
+            << sumThroughputAPToSTA / countPacketsSentAPToSTA
+            << std::endl;
+
+    csvFile.close();
+}
