@@ -449,10 +449,16 @@ void PacketLoggingStats::DumpPacketRecordsMeansToCsv() const {
         }
     }
 
+
     // Write summary statistics to CSV.
     csvFile << countPacketsSentSTAToAP << ";"
-            << countPacketsSentAPToSTA << ";"
-            << sumPacketSizeSTAToAP / countPacketsSentSTAToAP << ";"
+            << countPacketsSentAPToSTA << ";";
+
+    // Prevent division by zero.
+    if (countPacketsSentSTAToAP == 0) countPacketsSentSTAToAP = 1;
+    if (countPacketsSentAPToSTA == 0) countPacketsSentAPToSTA = 1;
+
+    csvFile << sumPacketSizeSTAToAP / countPacketsSentSTAToAP << ";"
             << sumPacketSizeAPToSTA / countPacketsSentAPToSTA << ";"
             << sumTxBeginCountSTAToAP / countPacketsSentSTAToAP << ";"
             << sumTxBeginCountAPToSTA / countPacketsSentAPToSTA << ";"
