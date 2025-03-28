@@ -11,9 +11,7 @@ def get_scenario_commands():
     
     # Independent variables
     independent_vars = {
-        "nodeXCount" : range(1, 30),
-        "nodeXOffset": [-1.8 / 2],
-        "nodeYOffset": [-1.8 / 2],
+        "nodeXCount" : range(1, 31),
         "nodeZCount": [1],
         "nodeZSpacing": [1],
         "nodeZOffset": list(np.arange(0, -1.8, -0.05)),
@@ -24,7 +22,7 @@ def get_scenario_commands():
         "packetStatsConfig": ["means"],
         "enablePositionLogging": ["true"],
         "powerLoggingConfig": ["short"],
-        "scenarioFolderPath": ["unified_buoy"]
+        "scenarioFolderPath": ["unified/buoy/run"]
     }
 
     # Dependent variables defined via lambda functions. 
@@ -32,8 +30,10 @@ def get_scenario_commands():
     dependent_vars = {
         # 1.8 because otherwise we'll have nodes out of range
         "nodeXSpacing": lambda args: 1.8 / (args["nodeXCount"] - 1) if args["nodeXCount"] > 1 else 1,
+        "nodeXOffset": lambda args: -args["nodeXSpacing"] * (args["nodeXCount"] - 1) / 2,
         "nodeYCount": lambda args: args["nodeXCount"],
-        "nodeYSpacing": lambda args: args["nodeXSpacing"],
+        "nodeYSpacing": lambda args: 1.8 / (args["nodeYCount"] - 1) if args["nodeYCount"] > 1 else 1,
+        "nodeYOffset": lambda args: -args["nodeYSpacing"] * (args["nodeYCount"] - 1) / 2,
         "dataRatePHY": lambda args: "OfdmRate1_2MbpsBW1MHz" if args["channelWidth"] == 1 else "OfdmRate7_8MbpsBW2MHz",
     }
 
