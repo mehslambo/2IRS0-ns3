@@ -11,29 +11,28 @@ def get_scenario_commands():
     
     # Independent variables
     independent_vars = {
-        "nodeXCount" : range(1, 31),
+        "nodeXCount" : [1],
+        "nodeXSpacing": [1],
+        "nodeXOffset": list(np.arange(0, 1.5, 0.1)) + list(np.arange(1.5, 1.8, 0.01)) + list(np.arange(1.8, 2.3, 0.1)),
+        "nodeYCount" : [1],
+        "nodeYSpacing": [1],
+        "nodeYOffset": [0],
         "nodeZCount": [1],
         "nodeZSpacing": [1],
-        "nodeZOffset": list(np.arange(0, -1.8, -0.05)),
+        "nodeZOffset": [0],
         "auvSpeed": [0],
         "propagationModel": ["freshwater"],
-        "stopTime": [10*60],  # seconds
+        "stopTime": [1*60],  # seconds
         "channelWidth": [1],
         "packetStatsConfig": ["means"],
         "enablePositionLogging": ["true"],
         "powerLoggingConfig": ["short"],
-        "scenarioFolderPath": ["unified/buoy/run"]
+        "scenarioFolderPath": ["unified/p2p/run"]
     }
 
     # Dependent variables defined via lambda functions. 
     # Each lambda receives a dict with the current independent variables.
     dependent_vars = {
-        # 1.8 because otherwise we'll have nodes out of range
-        "nodeXSpacing": lambda args: 1.8 / (args["nodeXCount"] - 1) if args["nodeXCount"] > 1 else 1,
-        "nodeXOffset": lambda args: -args["nodeXSpacing"] * (args["nodeXCount"] - 1) / 2,
-        "nodeYCount": lambda args: range(1, args["nodeXCount"] + 1),
-        "nodeYSpacing": lambda args: 1.8 / (args["nodeYCount"] - 1) if args["nodeYCount"] > 1 else 1,
-        "nodeYOffset": lambda args: -args["nodeYSpacing"] * (args["nodeYCount"] - 1) / 2,
         "dataRatePHY": lambda args: "OfdmRate1_2MbpsBW1MHz" if args["channelWidth"] == 1 else "OfdmRate7_8MbpsBW2MHz",
     }
 

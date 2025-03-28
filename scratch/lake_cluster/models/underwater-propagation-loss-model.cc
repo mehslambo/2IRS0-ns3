@@ -75,7 +75,7 @@ UnderwaterPropagationLossModel::DoCalcLoss (Ptr<MobilityModel> a, Ptr<MobilityMo
 
   double pi = std::acos(-1.0);
   double mu0 = 4.0 * pi * 1e-7;
-  double epsilon0 = 8.85e-12;
+  double epsilon_0 = 8.85e-12;
   double c = 2.998e8;
   double omega = 2.0 * pi * m_frequency;
 
@@ -108,8 +108,8 @@ UnderwaterPropagationLossModel::DoCalcLoss (Ptr<MobilityModel> a, Ptr<MobilityMo
 
   std::complex<double> j (0.0, 1.0);
   std::complex<double> denom = 1.0 + j * (m_frequency / m_f_ref);
-  std::complex<double> epsilon_r = m_epsilon_inf + (m_epsilon_s - m_epsilon_inf) / denom;
-  std::complex<double> epsilon = epsilon0 * epsilon_r;
+  std::complex<double> epsilon_r = (m_epsilon_inf + ((m_epsilon_s - m_epsilon_inf) / denom))- ((j * m_sigma) / (2 * pi * m_frequency * epsilon_0));
+  std::complex<double> epsilon = epsilon_0 * epsilon_r;
 
   std::complex<double> gamma = std::sqrt (j * omega * mu0 * (m_sigma + j * omega * epsilon));
   double alpha = std::real (gamma);

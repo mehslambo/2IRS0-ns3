@@ -91,7 +91,7 @@ int nodeZCount = 1;
 double auvSpeed = 0.1; // m/s
 double auvZOffset = 0;
 
-std::string propagationModel = "air"; // Valid values are "air" and "freshwater"
+std::string propagationModel = "air"; // Valid values are "air" and "underwater"
 
 Time stopTime = Hours(2);
 uint32_t simTime = 3600;
@@ -1194,6 +1194,9 @@ int main(int argc, char *argv[]) {
 	std::string powerLoggingConfig = "short";  // all/short
 	bool enableMacStats = false;
 
+	double waterTemperature = 20;
+	double waterSalinity = 0.01;
+
 	CommandLine cmd;
 	cmd.AddValue("sensors", "Number of sensors", totalNodes);
 	cmd.AddValue("nodeXOffset", "Offset of the nodes in the x axis", nodeXOffset);
@@ -1208,7 +1211,7 @@ int main(int argc, char *argv[]) {
 	cmd.AddValue("auvSpeed", "The speed of the auv (in m/s). If 0 a ConstantPositionMobilityModel is used.", auvSpeed);
 	cmd.AddValue("auvZOffset", "The depth at which the AUV operates at (should be -)", auvZOffset);
 	cmd.AddValue("stopTime", "Simulation time in seconds", simTime);
-	cmd.AddValue("propagationModel", "Propagation model (air/freshwater)", propagationModel);
+	cmd.AddValue("propagationModel", "Propagation model (air/underwater)", propagationModel);
 	cmd.AddValue("channelWidth", "1/2 MHz", channelWidth);
 	cmd.AddValue("dataRatePHY", "Data rate. Recommended: OfdmRate1_2MbpsBW1MHz, OfdmRate7_8MbpsBW2MHz", dataRate);
 	cmd.AddValue("scenarioFolderPath", "Path for the scenario folder (no trailing /)", scenarioFolderPath);
@@ -1216,6 +1219,8 @@ int main(int argc, char *argv[]) {
 	cmd.AddValue("enablePositionLogging", "Enable position logging", enablePositionLogging);
 	cmd.AddValue("powerLoggingConfig", "Power logging configuration (all/short)", powerLoggingConfig);
 	cmd.AddValue("enableMacStats", "Enable MAC stats", enableMacStats);
+	cmd.AddValue("waterTemperature", "Water temperature in Celsius", waterTemperature);
+	cmd.AddValue("waterSalinity", "Water salinity in PSU", waterSalinity);
 	// cmd.Parse(argc, argv);
 	// CommandLine arguments are processed by Configuration.
 
@@ -1325,8 +1330,12 @@ int main(int argc, char *argv[]) {
 	Ptr<FriisPropagationLossModel> friisLoss = CreateObject<FriisPropagationLossModel>();
 
 	Ptr<UnderwaterPropagationLossModel> underwaterLoss = CreateObject<UnderwaterPropagationLossModel>();
+	underwaterLoss->SetAttribute("Temperature", DoubleValue(waterTemperature));
+	underwaterLoss->SetAttribute("Salinity", DoubleValue(waterSalinity));
 
   	Ptr<UnderwaterPropagationDelayModel> underwaterDelay = CreateObject<UnderwaterPropagationDelayModel> ();
+	underwaterDelay->SetAttribute("Temperature", DoubleValue(waterTemperature));
+	underwaterDelay->SetAttribute("Salinity", DoubleValue(waterSalinity));
 	
   	Ptr<PropagationDelayModel> constantDelay = CreateObject<ConstantSpeedPropagationDelayModel> ();
   
@@ -1336,7 +1345,7 @@ int main(int argc, char *argv[]) {
 		channel->SetPropagationLossModel(friisLoss);
 		std::cout<<"Using constant propagation delay model"<<std::endl;
 		channel->SetPropagationDelayModel(constantDelay);
-	} else if(propagationModel == "freshwater") {
+	} else if(propagationModel == "underwater") {
 		std::cout<<"Using Friis + underwater propagation loss model"<<std::endl;
 		friisLoss->SetNext(underwaterLoss);
 		channel->SetPropagationLossModel(friisLoss);

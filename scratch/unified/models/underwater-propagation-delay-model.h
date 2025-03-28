@@ -20,16 +20,12 @@ public:
 private:
   // The frequency (in Hz) at which the model is applied
   double m_frequency;
-  // The conductivity (in S/m) of the water
-  double m_sigma;
-  // The real relative permittivity of the water at low frequencies
-  // Aka static permittivity
-  double m_epsilon_s;
+  // The temperature of water at a specific place
+  double m_temp;
+  // The salinity of water at a specific place
+  double m_S;
   // The real relative permittivity of the water at high frequencies
-  // Aka high frequency permittivity
   double m_epsilon_inf;
-  // The relaxation frequency of the water
-  double m_f_ref;
 
   virtual int64_t DoAssignStreams (int64_t stream);
 };

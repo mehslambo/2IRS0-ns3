@@ -60,7 +60,7 @@ Time stopTime = Hours(2);
 
 uint32_t gateways = 1;
 uint32_t totalNodes = 200;
-double nodeSpacing = 0.01; // 1cm
+double nodeSpacing = 0.1; // 1cm
 
 uint32_t packetSize = 1;
 int32_t totalSize = 1;

@@ -418,10 +418,19 @@ void PacketLoggingStats::DumpPacketRecordsMeansToCsv() const {
     double sumThroughputSTAToAP = 0;
     double sumThroughputAPToSTA= 0;
 
+    uint32_t skippedPacketCount = 0;
+
     // Go through each each packet record.
     for (std::map<uint32_t, PacketRecord>::const_iterator it = m_packetRecords.begin();
          it != m_packetRecords.end(); ++it) {
         const PacketRecord& record = it->second;
+
+        if (record.txBeginCount == 0 || record.rxEndCount == 0) {
+            skippedPacketCount++;
+            //std::cout<<"[PacketLoggingStats] Skipping packet " << record.packetId << " due to missing TX or RX events."<<std::endl;
+            continue;
+        }
+
         if (record.sourceNodeType == "STA" && record.destinationNodeType == "AP") {
             countPacketsSentSTAToAP++;
             sumPacketSizeSTAToAP += record.packetSize;
@@ -448,6 +457,8 @@ void PacketLoggingStats::DumpPacketRecordsMeansToCsv() const {
             sumThroughputAPToSTA += throughput;
         }
     }
+
+    std::cout << "[PacketLoggingStats] Skipped " << skippedPacketCount << " packets due to missing TX or RX events." << std::endl;
 
 
     // Write summary statistics to CSV.
