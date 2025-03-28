@@ -34,6 +34,8 @@
 #include "ns3/wifi-phy.h"
 #include "ns3/wifi-mac-header.h"
 #include "logging/mac-addresses.h"
+#include "logging/mac-stats.h"
+#include "logging/mac-stats.cc"
 #include "logging/packet-logging-raw.h"
 #include "logging/packet-logging-raw.cc"
 #include "logging/packet-logging-stats.h"
@@ -1190,6 +1192,7 @@ int main(int argc, char *argv[]) {
 	std::string packetStatsConfig = "means";  // all/short/means
 	bool enablePositionLogging = false;
 	std::string powerLoggingConfig = "short";  // all/short
+	bool enableMacStats = false;
 
 	CommandLine cmd;
 	cmd.AddValue("sensors", "Number of sensors", totalNodes);
@@ -1212,6 +1215,7 @@ int main(int argc, char *argv[]) {
 	cmd.AddValue("packetStatsConfig", "Packet stats configuration (all/short/means)", packetStatsConfig);
 	cmd.AddValue("enablePositionLogging", "Enable position logging", enablePositionLogging);
 	cmd.AddValue("powerLoggingConfig", "Power logging configuration (all/short)", powerLoggingConfig);
+	cmd.AddValue("enableMacStats", "Enable MAC stats", enableMacStats);
 	// cmd.Parse(argc, argv);
 	// CommandLine arguments are processed by Configuration.
 
@@ -1305,17 +1309,11 @@ int main(int argc, char *argv[]) {
         }
     }
 
-	
 	if (auvSpeed == 0)
-		wifiApNode.Get(0)->GetObject<MobilityModel>()->SetPosition(Vector(0,0,0));
+    	wifiApNode.Get(0)->GetObject<MobilityModel>()->SetPosition(Vector(0, 0, 0));
 	else 
-		// Create the waypoint controller
-		WaypointController controller(wifiApNode.Get(0), auvWaypoints, auvSpeed);
-
-	// Force a position update to log the positions at T=0		
-	Ptr<MobilityModel> mobility1 = wifiApNode.Get(0)->GetObject<MobilityModel>();
-    Vector apposition = mobility1->GetPosition();
-    mobility1->SetPosition(apposition);
+    	// Create the waypoint controller.
+    	WaypointController controller(wifiApNode.Get(0), auvWaypoints, auvSpeed, stopTime.GetSeconds());
 
   	//Simulator::Schedule(MilliSeconds(1000), &ToggleAPPosition);
 
@@ -1486,6 +1484,11 @@ int main(int argc, char *argv[]) {
 				MakeCallback(&assoc_record::UnsetAssoc, m_assocrecord));
 		assoc_vector.push_back(m_assocrecord);
 	}
+
+	MacStats macStats = MacStats(scenarioFolderPath, wifiStaNode);
+	if (enableMacStats){
+		macStats.EnableLogging();
+	}
 	
 
 	Ipv4GlobalRoutingHelper::PopulateRoutingTables();
@@ -1535,6 +1538,10 @@ int main(int argc, char *argv[]) {
 
 	if (powerLoggingConfig == "short") {
 		powerLoggerStats.DumpPowerRecordsToCsv();
+	}
+
+	if (enableMacStats) {
+		macStats.DumpMacRecordsToCsv();
 	}
 
 	Simulator::Destroy();
