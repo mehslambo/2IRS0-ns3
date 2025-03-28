@@ -13,7 +13,7 @@ def get_scenario_commands():
     independent_vars = {
         "nodeXCount" : [1],
         "nodeXSpacing": [1],
-        "nodeXOffset": list(np.arange(0, 1.5, 0.1)) + list(np.arange(1.5, 1.8, 0.01)) + list(np.arange(1.8, 2.3, 0.1)),
+        "nodeXOffset": list(np.arange(0, 1.5, 0.05)) + list(np.arange(1.5, 1.9, 0.01)) + list(np.arange(1.9, 2.3, 0.05)),
         "nodeYCount" : [1],
         "nodeYSpacing": [1],
         "nodeYOffset": [0],
@@ -21,12 +21,15 @@ def get_scenario_commands():
         "nodeZSpacing": [1],
         "nodeZOffset": [0],
         "auvSpeed": [0],
-        "propagationModel": ["freshwater"],
-        "stopTime": [1*60],  # seconds
-        "channelWidth": [1],
+        "propagationModel": ["underwater"],
+        "waterTemperature": list(np.arange(0, 30, .5)),
+        "waterSalinity": [0.01, 0.5],
+        "stopTime": [10*60],  # seconds
+        "channelWidth": [1, 2],
         "packetStatsConfig": ["means"],
         "enablePositionLogging": ["true"],
         "powerLoggingConfig": ["short"],
+        "enableMacStats": ["true"],
         "scenarioFolderPath": ["unified/p2p/run"]
     }
 
