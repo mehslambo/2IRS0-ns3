@@ -6,36 +6,41 @@ import time
 import select
 import numpy as np
 
+# Copy the current environment variables
+env = os.environ.copy()
+env["LD_LIBRARY_PATH"] = os.path.expanduser('~/ns3/build') + ":" + env.get("LD_LIBRARY_PATH", "")
+
 def get_scenario_commands():
     scenario_name = "unified"
     
     # Independent variables
     independent_vars = {
-        "nodeXCount" : [1],
-        "nodeXSpacing": [1],
-        "nodeXOffset": list(np.arange(0, 1.5, 0.05)) + list(np.arange(1.5, 1.9, 0.01)) + list(np.arange(1.9, 2.3, 0.05)),
-        "nodeYCount" : [1],
-        "nodeYSpacing": [1],
-        "nodeYOffset": [0],
+        "nodeXCount" : list(np.arange(1, 26, 1)),
+        "nodeYCount" : list(np.arange(1, 26, 1)),
         "nodeZCount": [1],
         "nodeZSpacing": [1],
-        "nodeZOffset": [0],
+        "nodeZOffset": list(np.arange(0, -1.8, -0.1)),
         "auvSpeed": [0],
         "propagationModel": ["underwater"],
-        "waterTemperature": list(np.arange(0, 30, .5)),
-        "waterSalinity": [0.01, 0.5],
+        "waterTemperature": [20],
+        "waterSalinity": [0.01],
         "stopTime": [10*60],  # seconds
-        "channelWidth": [1, 2],
+        "channelWidth": [1],
         "packetStatsConfig": ["means"],
         "enablePositionLogging": ["true"],
         "powerLoggingConfig": ["short"],
         "enableMacStats": ["true"],
-        "scenarioFolderPath": ["unified/p2p/run"]
+        "scenarioFolderPath": ["\"unified/buoy/run\""]
     }
 
     # Dependent variables defined via lambda functions. 
     # Each lambda receives a dict with the current independent variables.
     dependent_vars = {
+        # 1.8 because otherwise we'll have nodes out of range
+        "nodeXSpacing": lambda args: 1.8 / (args["nodeXCount"] - 1) if args["nodeXCount"] > 1 else 1,
+        "nodeXOffset": lambda args: -args["nodeXSpacing"] * (args["nodeXCount"] - 1) / 2,
+        "nodeYSpacing": lambda args: 1.8 / (args["nodeYCount"] - 1) if args["nodeYCount"] > 1 else 1,
+        "nodeYOffset": lambda args: -args["nodeYSpacing"] * (args["nodeYCount"] - 1) / 2,
         "dataRatePHY": lambda args: "OfdmRate1_2MbpsBW1MHz" if args["channelWidth"] == 1 else "OfdmRate7_8MbpsBW2MHz",
     }
 
@@ -54,14 +59,17 @@ def get_scenario_commands():
     for config in configurations:
         for dep_key, formula in dependent_vars.items():
             config[dep_key] = formula(config)
+            
+    # Remove configurations where nodeYCount > nodeXCount (symmetry)
+    configurations = [config for config in configurations if config["nodeYCount"] <= config["nodeXCount"]]
 
     # Build the scenario commands by appending flags for each configuration.
     scenario_commands = []
     for config in configurations:
-        command = f'./waf --run "{scenario_name}'
+        command = f'./build/scratch/unified/unified {scenario_name}'
         for arg, value in config.items():
             command += f' --{arg}={value}'
-        command += '"'
+        #command += '"'
         scenario_commands.append(command)
 
     return scenario_commands
@@ -95,7 +103,7 @@ def main(stdscr):
     total_commands = len(scenario_commands)
 
     # --- GRID LAYOUT SETUP ---
-    grid_rows = 2
+    grid_rows = 6
     grid_cols = 3
     max_workers = grid_rows * grid_cols
 
@@ -165,7 +173,8 @@ def main(stdscr):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
-                bufsize=1
+                bufsize=1,
+                env=env
             )
             workers[i] = {
                 'proc': proc,
