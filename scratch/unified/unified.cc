@@ -57,6 +57,8 @@
 #include "ns3/packet-sink-helper.h"
 #include "ns3/socket.h"
 #include "ns3/socket-factory.h"
+#include "ns3/basic-energy-source.h"
+#include "ns3/wifi-radio-energy-model.h"
 
 NS_LOG_COMPONENT_DEFINE("unified");
 
@@ -1181,6 +1183,78 @@ void DumpConfig(int argc, char *argv[], std::string scenarioFolder) {
 	logFile.close();
 }
 
+void ApplyNodeSensorSleep() {
+	// Simulate the AP+STA having special sensors that sense each other
+	// This way the WiFi nodes can sleep when not in use.
+
+	Vector apPos = wifiApNode.Get(0)->GetObject<MobilityModel>()->GetPosition();
+
+	for (uint32_t i = 0; i < wifiStaNode.GetN(); i++) {
+		Vector staPos = wifiStaNode.Get(i)->GetObject<MobilityModel>()->GetPosition();
+		double dx = apPos.x - staPos.x;
+		double dy = apPos.y - staPos.y;
+		double dz = apPos.z - staPos.z;
+		double distance = std::sqrt(dx * dx + dy * dy + dz * dz);
+
+		Ptr<Node> node = wifiStaNode.Get(i);
+        uint32_t nodeId = node->GetId();
+        Ptr<NetDevice> device = node->GetDevice(0);
+        Ptr<WifiNetDevice> wifiDevice = DynamicCast<WifiNetDevice>(device);
+        if (wifiDevice)
+        {
+            // The energy model is attached to the node, not the device
+            Ptr<EnergySourceContainer> sourceContainer = node->GetObject<EnergySourceContainer>();
+            Ptr<WifiRadioEnergyModel> energyModel = nullptr;
+            if (sourceContainer && sourceContainer->GetN() > 0)
+            {
+                Ptr<EnergySource> source = sourceContainer->Get(0);
+                // Get the device energy model from the energy source
+                DeviceEnergyModelContainer deviceModels = source->FindDeviceEnergyModels("ns3::WifiRadioEnergyModel");
+                if (deviceModels.GetN() > 0)
+                {
+                    energyModel = DynamicCast<WifiRadioEnergyModel>(deviceModels.Get(0));
+                }
+            }
+            if (energyModel)
+            {
+                if (IsAssoc(nodeId)) { 
+					// Alternative: distance < 1.8; Using IsAssoc is better because water properties
+					// can mean the distance never reaches 1.8 and a different type of imaginary
+					// sensor would be fitted on the UAV for those scenarios.
+					// This way we can at least assume that the sensor would wake STAs up right when
+					// a WiFi link would also be doable.
+					// Do keep in mind that this approach does ignore the amount of power spent
+					// on the handshake with the AP.
+
+					//std::cout << "Turning station " << i << " \"on\" (distance=" << distance << ")" << std::endl;
+					// Restore power levels, TxCurrentA, RxCurrentA, etc. in its energy model.
+					energyModel->SetAttribute("TxCurrentA", DoubleValue(0.380));
+					energyModel->SetAttribute("RxCurrentA", DoubleValue(0.313));
+					energyModel->SetAttribute("IdleCurrentA", DoubleValue(0.0273));
+					energyModel->SetAttribute("SleepCurrentA", DoubleValue(0.033));
+				} else {
+					//std::cout << "Turning station " << i << " \"off\" (distance=" << distance << ")" << std::endl;
+					// Set all current draws to zero to effectively simulate turning off the radio.
+					energyModel->SetAttribute("TxCurrentA", DoubleValue(0));
+					energyModel->SetAttribute("RxCurrentA", DoubleValue(0));
+					energyModel->SetAttribute("IdleCurrentA", DoubleValue(0));
+					energyModel->SetAttribute("SleepCurrentA", DoubleValue(0));
+				}
+            }
+            else
+            {
+                std::cout << "Energy model not found for node " << nodeId << std::endl;
+            }
+        }
+        else
+        {
+            std::cout << "WifiNetDevice not found for node " << nodeId << std::endl;
+        }
+	}
+
+	Simulator::Schedule(Seconds(0.1), &ApplyNodeSensorSleep);
+}
+
 int main(int argc, char *argv[]) {
 	//LogComponentEnable("TCPSensorServer", LOG_ALL);
 	//LogComponentEnable("TCPSensorClient", LOG_ALL);
@@ -1193,6 +1267,7 @@ int main(int argc, char *argv[]) {
 	bool enablePositionLogging = false;
 	std::string powerLoggingConfig = "short";  // all/short
 	bool enableMacStats = false;
+	bool enableNodeSensorSleep = false;
 
 	double waterTemperature = 20;
 	double waterSalinity = 0.01;
@@ -1221,6 +1296,7 @@ int main(int argc, char *argv[]) {
 	cmd.AddValue("enableMacStats", "Enable MAC stats", enableMacStats);
 	cmd.AddValue("waterTemperature", "Water temperature in Celsius", waterTemperature);
 	cmd.AddValue("waterSalinity", "Water salinity in PSU", waterSalinity);
+	cmd.AddValue("enableNodeSensorSleep", "Allow the STAs to magically sense when their AP is nearby, improving their energy efficiency", enableNodeSensorSleep);
 	// cmd.Parse(argc, argv);
 	// CommandLine arguments are processed by Configuration.
 
@@ -1387,24 +1463,26 @@ int main(int argc, char *argv[]) {
 	mac.SetType(
 		"ns3::StaWifiMac", 
 		"Ssid", SsidValue(ssid), 
-		"ActiveProbing",BooleanValue(true),
-		"MaxMissedBeacons", UintegerValue(3), // Default 10
-		"ProbeRequestTimeout", TimeValue(Seconds(0.03)), // Default 0.05
-		"AssocRequestTimeout", TimeValue(Seconds(0.3)) // Default 0.5
+		"ActiveProbing", BooleanValue(false)
+		//"ActiveProbing",BooleanValue(true),
+		//"MaxMissedBeacons", UintegerValue(3), // Default 10
+		//"ProbeRequestTimeout", TimeValue(Seconds(0.03)), // Default 0.05
+		//"AssocRequestTimeout", TimeValue(Seconds(0.3)) // Default 0.5
 	);
 
 	NetDeviceContainer staDevice;
 	staDevice = wifi.Install(phy, mac, wifiStaNode);
 
 	config.BeaconInterval = 50000; // 50ms, unit is us
-	mac.SetType("ns3::ApWifiMac",
-				"Ssid", SsidValue (ssid),
-				"BeaconInterval", TimeValue (MicroSeconds(config.BeaconInterval)),
-				"NRawStations", UintegerValue (config.NRawSta),
-				"RPSsetup", RPSVectorValue (config.rps),
-				"PageSliceSet", pageSliceValue (config.pageS),
-				"TIMSet", TIMValue (config.tim)
-			);
+	mac.SetType(
+		"ns3::ApWifiMac",
+		"Ssid", SsidValue (ssid),
+		"BeaconInterval", TimeValue (MicroSeconds(config.BeaconInterval)),
+		"NRawStations", UintegerValue (config.NRawSta),
+		"RPSsetup", RPSVectorValue (config.rps),
+		"PageSliceSet", pageSliceValue (config.pageS),
+		"TIMSet", TIMValue (config.tim)
+	);
 
 	phy.Set("TxGain", DoubleValue(3.0));
 	phy.Set("RxGain", DoubleValue(3.0));
@@ -1448,20 +1526,7 @@ int main(int argc, char *argv[]) {
 		std::cout << "Invalid packet stats configuration specified" << std::endl;
 		return 1;
 	}
-
-	// Install the power sniffers
-	PowerLoggingRaw powerLogger(scenarioFolderPath, wifiStaNode, wifiApNode);
-	PowerLoggingStats powerLoggerStats(scenarioFolderPath, wifiStaNode, wifiApNode);
-	if (powerLoggingConfig == "all") {
-		powerLogger.EnableLogging();
-	} else if (powerLoggingConfig == "short") {
-		powerLoggerStats.EnableLogging();
-	} else {
-		std::cout << "Invalid power logging configuration specified" << std::endl;
-		return 1;
-	}
 	
-
 	/* Internet stack*/
 	InternetStackHelper stack;
 	stack.Install(wifiApNode);
@@ -1514,6 +1579,50 @@ int main(int argc, char *argv[]) {
 
 
 	sendStatistics(false);
+
+	// ******************
+	// ENERGY
+	// ******************
+	BasicEnergySourceHelper basicSourceHelper;
+	basicSourceHelper.Set("BasicEnergySourceInitialEnergyJ", DoubleValue(100000000));  // Joules
+	EnergySourceContainer staSources = basicSourceHelper.Install(wifiStaNode);
+	EnergySourceContainer apSources = basicSourceHelper.Install(wifiApNode);
+
+	WifiRadioEnergyModelHelper radioEnergyHelper;
+	// Values based on https://www.nsnam.org/docs/release/3.23/doxygen/classns3_1_1_wifi_radio_energy_model.html
+	// REMEMBER TO ALSO UPDATE THESE VALUES IN ApplyNodeSensorSleep()
+	radioEnergyHelper.Set("TxCurrentA", DoubleValue(0.380));
+	radioEnergyHelper.Set("RxCurrentA", DoubleValue(0.313));
+	radioEnergyHelper.Set("IdleCurrentA", DoubleValue(0.0273));
+	radioEnergyHelper.Set("SleepCurrentA", DoubleValue(0.033));
+	//Ptr<LinearWifiTxCurrentModel> txModel = CreateObject<LinearWifiTxCurrentModel> ();
+	//txModel->SetVoltage (3.0);
+	//txModel->SetEta (0.1);
+	//txModel->SetIdleCurrent (0.0273);
+	//radioEnergyHelper.Set("TxCurrentModel", PointerValue(txModel));
+	DeviceEnergyModelContainer deviceModels;
+	for (uint32_t i = 0; i < wifiStaNode.GetN(); i++) {
+		deviceModels.Add(radioEnergyHelper.Install(staDevice.Get(i), staSources.Get(i)));
+	}
+	for (uint32_t i = 0; i < wifiApNode.GetN(); i++) {
+		deviceModels.Add(radioEnergyHelper.Install(apDevice.Get(i), apSources.Get(i)));
+	}
+
+	// Install the power sniffers
+	PowerLoggingRaw powerLogger(scenarioFolderPath, wifiStaNode, wifiApNode);
+	PowerLoggingStats powerLoggerStats(scenarioFolderPath, wifiStaNode, wifiApNode);
+	if (powerLoggingConfig == "all") {
+		powerLogger.EnableLogging();
+	} else if (powerLoggingConfig == "short") {
+		powerLoggerStats.EnableLogging();
+	} else {
+		std::cout << "Invalid power logging configuration specified" << std::endl;
+		return 1;
+	}
+
+	if (enableNodeSensorSleep) {
+		ApplyNodeSensorSleep();
+	}
 
 	// ******************
 	//  SIMULATION
