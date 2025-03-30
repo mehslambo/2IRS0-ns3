@@ -36,16 +36,16 @@
 #include "logging/mac-addresses.h"
 #include "logging/mac-stats.h"
 #include "logging/mac-stats.cc"
-#include "logging/packet-logging-raw.h"
-#include "logging/packet-logging-raw.cc"
-#include "logging/packet-logging-stats.h"
-#include "logging/packet-logging-stats.cc"
+#include "logging/phy-sniffers-raw.h"
+#include "logging/phy-sniffers-raw.cc"
+#include "logging/phy-sniffers-agg.h"
+#include "logging/phy-sniffers-agg.cc"
 #include "logging/position-logging.h"
 #include "logging/position-logging.cc"
 #include "logging/power-logging-raw.h"
 #include "logging/power-logging-raw.cc"
-#include "logging/power-logging-stats.h"
-#include "logging/power-logging-stats.cc"
+#include "logging/power-logging-agg.h"
+#include "logging/power-logging-agg.cc"
 #include "WaypointController.cc"
 #include <cstring>
 #include <string.h>
@@ -57,6 +57,11 @@
 #include "ns3/packet-sink-helper.h"
 #include "ns3/socket.h"
 #include "ns3/socket-factory.h"
+#include "ns3/basic-energy-source.h"
+#include "ns3/wifi-radio-energy-model.h"
+#include "ns3/flow-monitor.h"
+#include "ns3/flow-monitor-helper.h"
+#include "ns3/flow-monitor-module.h"
 
 NS_LOG_COMPONENT_DEFINE("unified");
 
@@ -90,8 +95,6 @@ int nodeYCount = 10;
 int nodeZCount = 1;
 double auvSpeed = 0.1; // m/s
 double auvZOffset = 0;
-
-std::string propagationModel = "air"; // Valid values are "air" and "underwater"
 
 Time stopTime = Hours(2);
 uint32_t simTime = 3600;
@@ -1181,18 +1184,88 @@ void DumpConfig(int argc, char *argv[], std::string scenarioFolder) {
 	logFile.close();
 }
 
+void ApplyNodeSensorSleep() {
+	// Simulate the AP+STA having special sensors that sense each other
+	// This way the WiFi nodes can sleep when not in use.
+
+	Vector apPos = wifiApNode.Get(0)->GetObject<MobilityModel>()->GetPosition();
+
+	for (uint32_t i = 0; i < wifiStaNode.GetN(); i++) {
+		Vector staPos = wifiStaNode.Get(i)->GetObject<MobilityModel>()->GetPosition();
+		double dx = apPos.x - staPos.x;
+		double dy = apPos.y - staPos.y;
+		double dz = apPos.z - staPos.z;
+		double distance = std::sqrt(dx * dx + dy * dy + dz * dz);
+
+		Ptr<Node> node = wifiStaNode.Get(i);
+        uint32_t nodeId = node->GetId();
+        Ptr<NetDevice> device = node->GetDevice(0);
+        Ptr<WifiNetDevice> wifiDevice = DynamicCast<WifiNetDevice>(device);
+        if (wifiDevice)
+        {
+            // The energy model is attached to the node, not the device
+            Ptr<EnergySourceContainer> sourceContainer = node->GetObject<EnergySourceContainer>();
+            Ptr<WifiRadioEnergyModel> energyModel = nullptr;
+            if (sourceContainer && sourceContainer->GetN() > 0)
+            {
+                Ptr<EnergySource> source = sourceContainer->Get(0);
+                // Get the device energy model from the energy source
+                DeviceEnergyModelContainer deviceModels = source->FindDeviceEnergyModels("ns3::WifiRadioEnergyModel");
+                if (deviceModels.GetN() > 0)
+                {
+                    energyModel = DynamicCast<WifiRadioEnergyModel>(deviceModels.Get(0));
+                }
+            }
+            if (energyModel)
+            {
+                if (IsAssoc(nodeId)) { 
+					// Alternative: distance < 1.8; Using IsAssoc is better because water properties
+					// can mean the distance never reaches 1.8 and a different type of imaginary
+					// sensor would be fitted on the UAV for those scenarios.
+					// This way we can at least assume that the sensor would wake STAs up right when
+					// a WiFi link would also be doable.
+					// Do keep in mind that this approach does ignore the amount of power spent
+					// on the handshake with the AP.
+
+					//std::cout << "Turning station " << i << " \"on\" (distance=" << distance << ")" << std::endl;
+					// Restore power levels, TxCurrentA, RxCurrentA, etc. in its energy model.
+					energyModel->SetAttribute("TxCurrentA", DoubleValue(0.380));
+					energyModel->SetAttribute("RxCurrentA", DoubleValue(0.313));
+					energyModel->SetAttribute("IdleCurrentA", DoubleValue(0.0273));
+					energyModel->SetAttribute("SleepCurrentA", DoubleValue(0.033));
+				} else {
+					//std::cout << "Turning station " << i << " \"off\" (distance=" << distance << ")" << std::endl;
+					// Set all current draws to zero to effectively simulate turning off the radio.
+					energyModel->SetAttribute("TxCurrentA", DoubleValue(0));
+					energyModel->SetAttribute("RxCurrentA", DoubleValue(0));
+					energyModel->SetAttribute("IdleCurrentA", DoubleValue(0));
+					energyModel->SetAttribute("SleepCurrentA", DoubleValue(0));
+				}
+            }
+            else
+            {
+                std::cout << "Energy model not found for node " << nodeId << std::endl;
+            }
+        }
+        else
+        {
+            std::cout << "WifiNetDevice not found for node " << nodeId << std::endl;
+        }
+	}
+
+	Simulator::Schedule(Seconds(0.1), &ApplyNodeSensorSleep);
+}
+
 int main(int argc, char *argv[]) {
 	//LogComponentEnable("TCPSensorServer", LOG_ALL);
 	//LogComponentEnable("TCPSensorClient", LOG_ALL);
 	LogComponentEnable("WUSN", LOG_ALL);
 
+	std::string propagationModel = "air"; // Valid values are "air" and "underwater"
 	uint32_t channelWidth = 1;
 	std::string dataRate = "OfdmRate1_2MbpsBW1MHz";
 	std::string scenarioFolderPath = "unified";
-	std::string packetStatsConfig = "means";  // all/short/means
-	bool enablePositionLogging = false;
-	std::string powerLoggingConfig = "short";  // all/short
-	bool enableMacStats = false;
+	bool enableNodeSensorSleep = false;
 
 	double waterTemperature = 20;
 	double waterSalinity = 0.01;
@@ -1215,12 +1288,9 @@ int main(int argc, char *argv[]) {
 	cmd.AddValue("channelWidth", "1/2 MHz", channelWidth);
 	cmd.AddValue("dataRatePHY", "Data rate. Recommended: OfdmRate1_2MbpsBW1MHz, OfdmRate7_8MbpsBW2MHz", dataRate);
 	cmd.AddValue("scenarioFolderPath", "Path for the scenario folder (no trailing /)", scenarioFolderPath);
-	cmd.AddValue("packetStatsConfig", "Packet stats configuration (all/short/means)", packetStatsConfig);
-	cmd.AddValue("enablePositionLogging", "Enable position logging", enablePositionLogging);
-	cmd.AddValue("powerLoggingConfig", "Power logging configuration (all/short)", powerLoggingConfig);
-	cmd.AddValue("enableMacStats", "Enable MAC stats", enableMacStats);
 	cmd.AddValue("waterTemperature", "Water temperature in Celsius", waterTemperature);
 	cmd.AddValue("waterSalinity", "Water salinity in PSU", waterSalinity);
+	cmd.AddValue("enableNodeSensorSleep", "Allow the STAs to magically sense when their AP is nearby, improving their energy efficiency", enableNodeSensorSleep);
 	// cmd.Parse(argc, argv);
 	// CommandLine arguments are processed by Configuration.
 
@@ -1271,7 +1341,7 @@ int main(int argc, char *argv[]) {
 
 
 	// **********************
-	//  mobility.
+	// MOBILITY
 	// **********************
 	MobilityHelper mobilitySta;
 	mobilitySta.SetMobilityModel("ns3::ConstantPositionMobilityModel");
@@ -1285,10 +1355,8 @@ int main(int argc, char *argv[]) {
 	mobilityAp.Install(wifiApNode);
 
     // Add position logging
-	PositionLogging posLogger(scenarioFolderPath, MilliSeconds(500));
-	if (enablePositionLogging) {
-		posLogger.EnableLogging();
-	}
+	//PositionLogging posLogger(scenarioFolderPath, MilliSeconds(500));
+	//posLogger.EnableLogging();
 
 	// Position all STAs in a zig-zag pattern
 	std::vector<Vector> auvWaypoints = {};
@@ -1387,24 +1455,26 @@ int main(int argc, char *argv[]) {
 	mac.SetType(
 		"ns3::StaWifiMac", 
 		"Ssid", SsidValue(ssid), 
-		"ActiveProbing",BooleanValue(true),
-		"MaxMissedBeacons", UintegerValue(3), // Default 10
-		"ProbeRequestTimeout", TimeValue(Seconds(0.03)), // Default 0.05
-		"AssocRequestTimeout", TimeValue(Seconds(0.3)) // Default 0.5
+		"ActiveProbing", BooleanValue(false)
+		//"ActiveProbing",BooleanValue(true),
+		//"MaxMissedBeacons", UintegerValue(3), // Default 10
+		//"ProbeRequestTimeout", TimeValue(Seconds(0.03)), // Default 0.05
+		//"AssocRequestTimeout", TimeValue(Seconds(0.3)) // Default 0.5
 	);
 
 	NetDeviceContainer staDevice;
 	staDevice = wifi.Install(phy, mac, wifiStaNode);
 
 	config.BeaconInterval = 50000; // 50ms, unit is us
-	mac.SetType("ns3::ApWifiMac",
-				"Ssid", SsidValue (ssid),
-				"BeaconInterval", TimeValue (MicroSeconds(config.BeaconInterval)),
-				"NRawStations", UintegerValue (config.NRawSta),
-				"RPSsetup", RPSVectorValue (config.rps),
-				"PageSliceSet", pageSliceValue (config.pageS),
-				"TIMSet", TIMValue (config.tim)
-			);
+	mac.SetType(
+		"ns3::ApWifiMac",
+		"Ssid", SsidValue (ssid),
+		"BeaconInterval", TimeValue (MicroSeconds(config.BeaconInterval)),
+		"NRawStations", UintegerValue (config.NRawSta),
+		"RPSsetup", RPSVectorValue (config.rps),
+		"PageSliceSet", pageSliceValue (config.pageS),
+		"TIMSet", TIMValue (config.tim)
+	);
 
 	phy.Set("TxGain", DoubleValue(3.0));
 	phy.Set("RxGain", DoubleValue(3.0));
@@ -1438,30 +1508,11 @@ int main(int argc, char *argv[]) {
 	Config::ConnectWithoutContext(oss.str() + "RawSlot", MakeCallback(&RawSlotTrace));
 
 	// Install the packet sniffers
-	PacketLoggingRaw packetLogger(scenarioFolderPath, wifiStaNode, wifiApNode);
-	PacketLoggingStats packetLoggerStats(scenarioFolderPath, wifiStaNode, wifiApNode);
-	if (packetStatsConfig == "all") {
-		packetLogger.EnableLogging();
-	} else if (packetStatsConfig == "short" || packetStatsConfig == "means") {
-		packetLoggerStats.EnableLogging();
-	} else {
-		std::cout << "Invalid packet stats configuration specified" << std::endl;
-		return 1;
-	}
-
-	// Install the power sniffers
-	PowerLoggingRaw powerLogger(scenarioFolderPath, wifiStaNode, wifiApNode);
-	PowerLoggingStats powerLoggerStats(scenarioFolderPath, wifiStaNode, wifiApNode);
-	if (powerLoggingConfig == "all") {
-		powerLogger.EnableLogging();
-	} else if (powerLoggingConfig == "short") {
-		powerLoggerStats.EnableLogging();
-	} else {
-		std::cout << "Invalid power logging configuration specified" << std::endl;
-		return 1;
-	}
+	//PhySniffersRaw phySniffersRaw(scenarioFolderPath, wifiStaNode, wifiApNode);
+	//phySniffersRaw.EnableLogging();
+	//PhySniffersAgg phySniffersAgg(scenarioFolderPath, wifiStaNode, wifiApNode);
+	//phySniffersAgg.EnableLogging();
 	
-
 	/* Internet stack*/
 	InternetStackHelper stack;
 	stack.Install(wifiApNode);
@@ -1495,9 +1546,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	MacStats macStats = MacStats(scenarioFolderPath, wifiStaNode);
-	if (enableMacStats){
-		macStats.EnableLogging();
-	}
+	macStats.EnableLogging();
 	
 
 	Ipv4GlobalRoutingHelper::PopulateRoutingTables();
@@ -1516,7 +1565,45 @@ int main(int argc, char *argv[]) {
 	sendStatistics(false);
 
 	// ******************
-	//  SIMULATION
+	// ENERGY
+	// ******************
+	BasicEnergySourceHelper basicSourceHelper;
+	basicSourceHelper.Set("BasicEnergySourceInitialEnergyJ", DoubleValue(100000000));  // Joules
+	EnergySourceContainer staSources = basicSourceHelper.Install(wifiStaNode);
+	EnergySourceContainer apSources = basicSourceHelper.Install(wifiApNode);
+
+	WifiRadioEnergyModelHelper radioEnergyHelper;
+	// Values based on https://www.nsnam.org/docs/release/3.23/doxygen/classns3_1_1_wifi_radio_energy_model.html
+	// REMEMBER TO ALSO UPDATE THESE VALUES IN ApplyNodeSensorSleep()
+	radioEnergyHelper.Set("TxCurrentA", DoubleValue(0.380));
+	radioEnergyHelper.Set("RxCurrentA", DoubleValue(0.313));
+	radioEnergyHelper.Set("IdleCurrentA", DoubleValue(0.0273));
+	radioEnergyHelper.Set("SleepCurrentA", DoubleValue(0.033));
+	//Ptr<LinearWifiTxCurrentModel> txModel = CreateObject<LinearWifiTxCurrentModel> ();
+	//txModel->SetVoltage (3.0);
+	//txModel->SetEta (0.1);
+	//txModel->SetIdleCurrent (0.0273);
+	//radioEnergyHelper.Set("TxCurrentModel", PointerValue(txModel));
+	DeviceEnergyModelContainer deviceModels;
+	for (uint32_t i = 0; i < wifiStaNode.GetN(); i++) {
+		deviceModels.Add(radioEnergyHelper.Install(staDevice.Get(i), staSources.Get(i)));
+	}
+	for (uint32_t i = 0; i < wifiApNode.GetN(); i++) {
+		deviceModels.Add(radioEnergyHelper.Install(apDevice.Get(i), apSources.Get(i)));
+	}
+
+	// Install the power sniffers
+	//PowerLoggingRaw powerLogger(scenarioFolderPath, wifiStaNode, wifiApNode);
+	//powerLogger.EnableLogging();
+	PowerLoggingAgg powerLoggingAgg(scenarioFolderPath, wifiStaNode, wifiApNode);
+	powerLoggingAgg.EnableLogging();
+
+	if (enableNodeSensorSleep) {
+		ApplyNodeSensorSleep();
+	}
+
+	// ******************
+	//  APPLICATIONS
 	// ******************
 
 	//configureTCPSensorServer();
@@ -1525,6 +1612,10 @@ int main(int argc, char *argv[]) {
 	//configureTCPSensorClients();
 	//configureBulkSendApplications(); // Handled by onSTAAssociated()
 	//configureUDPClientApplications(); // Handled by onSTAAssociated()
+
+	Ptr<FlowMonitor> flowMonitor;
+	FlowMonitorHelper flowHelper;
+	flowMonitor = flowHelper.InstallAll();
 
 
 	// Initialize progress bar
@@ -1539,19 +1630,16 @@ int main(int argc, char *argv[]) {
 	// END OF SIM CODE
 	// ******************
 
-	if (packetStatsConfig == "short") {
-		packetLoggerStats.DumpPacketRecordsToCsv();
-	} else if (packetStatsConfig == "means") {
-		packetLoggerStats.DumpPacketRecordsMeansToCsv();
-	}
+	//phySniffersAgg.DumpPacketRecordsToCsv();
+	//phySniffersAgg.DumpPacketRecordsMeansToCsv();
 
-	if (powerLoggingConfig == "short") {
-		powerLoggerStats.DumpPowerRecordsToCsv();
-	}
+	powerLoggingAgg.DumpPowerRecordsToCsv();
 
-	if (enableMacStats) {
-		macStats.DumpMacRecordsToCsv();
-	}
+	macStats.DumpMacRecordsToCsv();
+
+	std::string flowMonitorPath = "postprocessing/logs/" + scenarioFolderPath + "/FlowMonitor.xml";
+	std::cout << "Flow monitor results saved to " << flowMonitorPath << std::endl;
+	flowMonitor->SerializeToXmlFile(flowMonitorPath, false, false);
 
 	Simulator::Destroy();
 	std::cout << "Simulation ended gracefully" << std::endl;

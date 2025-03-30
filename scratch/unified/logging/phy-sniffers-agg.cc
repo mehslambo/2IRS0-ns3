@@ -1,4 +1,4 @@
-#include "packet-logging-stats.h"
+#include "phy-sniffers-agg.h"
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -7,7 +7,7 @@
 #include "ns3/wifi-net-device.h"
 #include "ns3/wifi-mac.h"
 
-PacketLoggingStats::PacketLoggingStats(const std::string& scenarioName,
+PhySniffersAgg::PhySniffersAgg(const std::string& scenarioName,
                                        const NodeContainer& staNodes,
                                        const NodeContainer& apNodes)
     : m_scenarioName(scenarioName),
@@ -16,22 +16,22 @@ PacketLoggingStats::PacketLoggingStats(const std::string& scenarioName,
 {
 }
 
-void PacketLoggingStats::EnableLogging()
+void PhySniffersAgg::EnableLogging()
 {
     // Used for throughput calculations
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyTxBegin",
-                    MakeCallback(&PacketLoggingStats::TxBeginCallback, this));
+                    MakeCallback(&PhySniffersAgg::TxBeginCallback, this));
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyRxEnd",
-                    MakeCallback(&PacketLoggingStats::RxEndCallback, this));
+                    MakeCallback(&PhySniffersAgg::RxEndCallback, this));
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyRxDropWithReason",
-                    MakeCallback(&PacketLoggingStats::RxDropCallback, this));
+                    MakeCallback(&PhySniffersAgg::RxDropCallback, this));
 
     // Used for signal strength
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/MonitorSnifferRx",
-                    MakeCallback(&PacketLoggingStats::MonitorSnifferRxCallback, this));
+                    MakeCallback(&PhySniffersAgg::MonitorSnifferRxCallback, this));
 }
 
-MacAddresses PacketLoggingStats::ExtractMacAddresses(const WifiMacHeader& header)
+MacAddresses PhySniffersAgg::ExtractMacAddresses(const WifiMacHeader& header)
 {
     MacAddresses macs;
     macs.receiver = header.GetAddr1();
@@ -63,7 +63,7 @@ MacAddresses PacketLoggingStats::ExtractMacAddresses(const WifiMacHeader& header
     return macs;
 }
 
-uint32_t PacketLoggingStats::GetNodeIdFromMacAddress(const Mac48Address& addr)
+uint32_t PhySniffersAgg::GetNodeIdFromMacAddress(const Mac48Address& addr)
 {
     // Search STA nodes.
     for (uint32_t i = 0; i < m_staNodes.GetN(); i++) {
@@ -82,7 +82,7 @@ uint32_t PacketLoggingStats::GetNodeIdFromMacAddress(const Mac48Address& addr)
     return (uint32_t)-1;
 }
 
-std::string PacketLoggingStats::GetNodeType(uint32_t nodeId)
+std::string PhySniffersAgg::GetNodeType(uint32_t nodeId)
 {
     Ptr<Node> node = nullptr;
     for (uint32_t i = 0; i < m_staNodes.GetN(); i++) {
@@ -115,7 +115,7 @@ std::string PacketLoggingStats::GetNodeType(uint32_t nodeId)
     return nodeType;
 }
 
-Vector PacketLoggingStats::GetNodeCoordinates(uint32_t nodeId)
+Vector PhySniffersAgg::GetNodeCoordinates(uint32_t nodeId)
 {
     Ptr<Node> node = nullptr;
     for (uint32_t i = 0; i < m_staNodes.GetN(); i++) {
@@ -137,7 +137,7 @@ Vector PacketLoggingStats::GetNodeCoordinates(uint32_t nodeId)
     return mobility ? mobility->GetPosition() : Vector(0,0,0);
 }
 
-void PacketLoggingStats::TxBeginCallback(std::string context, Ptr<const Packet> packet)
+void PhySniffersAgg::TxBeginCallback(std::string context, Ptr<const Packet> packet)
 {
     // Extract the sniffer node ID from context.
     std::string::size_type pos = context.find("/NodeList/");
@@ -179,7 +179,7 @@ void PacketLoggingStats::TxBeginCallback(std::string context, Ptr<const Packet> 
     record.txBeginCount++;
 }
 
-void PacketLoggingStats::RxEndCallback(std::string context, Ptr<const Packet> packet)
+void PhySniffersAgg::RxEndCallback(std::string context, Ptr<const Packet> packet)
 {
     // Extract the sniffer node ID from context.
     std::string::size_type pos = context.find("/NodeList/");
@@ -220,7 +220,7 @@ void PacketLoggingStats::RxEndCallback(std::string context, Ptr<const Packet> pa
     record.dstCoordinates = GetNodeCoordinates(record.destinationNodeId);
 }
 
-void PacketLoggingStats::RxDropCallback(std::string context, Ptr<const Packet> packet, DropReason reason)
+void PhySniffersAgg::RxDropCallback(std::string context, Ptr<const Packet> packet, DropReason reason)
 {
     // Extract the sniffer node ID from context.
     std::string::size_type pos = context.find("/NodeList/");
@@ -257,7 +257,7 @@ void PacketLoggingStats::RxDropCallback(std::string context, Ptr<const Packet> p
     record.rxDropCount++;
 }
 
-void PacketLoggingStats::MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet, 
+void PhySniffersAgg::MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet, 
     uint16_t channelFreqMhz, uint16_t channelNumber, 
     uint32_t rate, bool isShortPreamble, 
     WifiTxVector txVector,
@@ -286,7 +286,7 @@ void PacketLoggingStats::MonitorSnifferRxCallback(std::string context, Ptr<const
     record.lastRxSignal = signalDbm;
 }
 
-void PacketLoggingStats::DumpPacketRecords() const
+void PhySniffersAgg::DumpPacketRecords() const
 {
     std::cout << "=== Packet Logging Summary ===" << std::endl;
     for (std::map<uint32_t, PacketRecord>::const_iterator it = m_packetRecords.begin();
@@ -307,7 +307,7 @@ void PacketLoggingStats::DumpPacketRecords() const
     }
 }
 
-void PacketLoggingStats::DumpPacketRecordsToCsv() const
+void PhySniffersAgg::DumpPacketRecordsToCsv() const
 {
     std::string baseLogPath = "postprocessing/logs/" + m_scenarioName;
     // Create logging directory if it doesn't exist
@@ -317,7 +317,7 @@ void PacketLoggingStats::DumpPacketRecordsToCsv() const
         std::cout << "Failed to create logging directory: " << baseLogPath << std::endl;
     }
     
-    std::string filename = baseLogPath + "/PacketLoggingStats.csv";
+    std::string filename = baseLogPath + "/PhySniffersAgg.csv";
     std::ofstream csvFile(filename.c_str());
     if (!csvFile.is_open()) {
         std::cerr << "Failed to open CSV file for writing: " << filename << std::endl;
@@ -371,7 +371,7 @@ void PacketLoggingStats::DumpPacketRecordsToCsv() const
     csvFile.close();
 }
 
-void PacketLoggingStats::DumpPacketRecordsMeansToCsv() const {
+void PhySniffersAgg::DumpPacketRecordsMeansToCsv() const {
     std::string baseLogPath = "postprocessing/logs/" + m_scenarioName;
     // Create logging directory if it doesn't exist
     std::string cmd = "mkdir -p " + baseLogPath;
@@ -380,7 +380,7 @@ void PacketLoggingStats::DumpPacketRecordsMeansToCsv() const {
         std::cout << "Failed to create logging directory: " << baseLogPath << std::endl;
     }
     
-    std::string filename = baseLogPath + "/PacketLoggingStatsSummary.csv";
+    std::string filename = baseLogPath + "/PhySniffersAggSummary.csv";
     std::ofstream csvFile(filename.c_str());
     if (!csvFile.is_open()) {
         std::cerr << "Failed to open CSV file for writing: " << filename << std::endl;
@@ -427,7 +427,7 @@ void PacketLoggingStats::DumpPacketRecordsMeansToCsv() const {
 
         if (record.txBeginCount == 0 || record.rxEndCount == 0) {
             skippedPacketCount++;
-            //std::cout<<"[PacketLoggingStats] Skipping packet " << record.packetId << " due to missing TX or RX events."<<std::endl;
+            //std::cout<<"[PhySniffersAgg] Skipping packet " << record.packetId << " due to missing TX or RX events."<<std::endl;
             continue;
         }
 
@@ -458,7 +458,7 @@ void PacketLoggingStats::DumpPacketRecordsMeansToCsv() const {
         }
     }
 
-    std::cout << "[PacketLoggingStats] Skipped " << skippedPacketCount << " packets due to missing TX or RX events." << std::endl;
+    std::cout << "[PhySniffersAgg] Skipped " << skippedPacketCount << " packets due to missing TX or RX events." << std::endl;
 
 
     // Write summary statistics to CSV.

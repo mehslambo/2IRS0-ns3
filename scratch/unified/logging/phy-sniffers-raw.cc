@@ -1,4 +1,4 @@
-#include "packet-logging-raw.h"
+#include "phy-sniffers-raw.h"
 #include <sys/stat.h>
 #include <chrono>
 #include <iomanip>
@@ -13,7 +13,7 @@
 
 using namespace ns3;
 
-const std::map<std::string, std::string> PacketLoggingRaw::CSV_HEADERS = {
+const std::map<std::string, std::string> PhySniffersRaw::CSV_HEADERS = {
     {"MonitorSnifferRx", "Time;SnifferNodeId;SnifferNodeX;SnifferNodeY;SnifferNodeZ;SnifferNodeType;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;ReceiverNodeX;ReceiverNodeY;ReceiverNodeZ;ReceiverNodeType;TransmitterMac;TransmitterNodeId;TransmitterNodeX;TransmitterNodeY;TransmitterNodeZ;TransmitterNodeType;BSSID;BSSIDNodeId;BSSIDNodeX;BSSIDNodeY;BSSIDNodeZ;BSSIDNodeType;DestinationMac;DestinationNodeId;DestinationNodeX;DestinationNodeY;DestinationNodeZ;DestinationNodeType;SourceMac;SourceNodeId;SourceNodeX;SourceNodeY;SourceNodeZ;SourceNodeType;IsRetry;ChannelFreqMHz;ChannelNumber;Rate;IsShortPreamble;Mode;Retries;Ness;Nss;IsShortGuardInterval;IsStbc;TxPowerLevel;NoiseDbm;SignalDbm"},
     {"MonitorSnifferTx", "Time;SnifferNodeId;SnifferNodeX;SnifferNodeY;SnifferNodeZ;SnifferNodeType;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;ReceiverNodeX;ReceiverNodeY;ReceiverNodeZ;ReceiverNodeType;TransmitterMac;TransmitterNodeId;TransmitterNodeX;TransmitterNodeY;TransmitterNodeZ;TransmitterNodeType;BSSID;BSSIDNodeId;BSSIDNodeX;BSSIDNodeY;BSSIDNodeZ;BSSIDNodeType;DestinationMac;DestinationNodeId;DestinationNodeX;DestinationNodeY;DestinationNodeZ;DestinationNodeType;SourceMac;SourceNodeId;SourceNodeX;SourceNodeY;SourceNodeZ;SourceNodeType;IsRetry;ChannelFreqMHz;ChannelNumber;Rate;IsShortPreamble;Mode;Retries;Ness;Nss;IsShortGuardInterval;IsStbc;TxPowerLevel"},
     {"PhyTxBegin", "Time;SnifferNodeId;SnifferNodeX;SnifferNodeY;SnifferNodeZ;SnifferNodeType;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;ReceiverNodeX;ReceiverNodeY;ReceiverNodeZ;ReceiverNodeType;TransmitterMac;TransmitterNodeId;TransmitterNodeX;TransmitterNodeY;TransmitterNodeZ;TransmitterNodeType;BSSID;BSSIDNodeId;BSSIDNodeX;BSSIDNodeY;BSSIDNodeZ;BSSIDNodeType;DestinationMac;DestinationNodeId;DestinationNodeX;DestinationNodeY;DestinationNodeZ;DestinationNodeType;SourceMac;SourceNodeId;SourceNodeX;SourceNodeY;SourceNodeZ;SourceNodeType;IsRetry"},
@@ -24,15 +24,20 @@ const std::map<std::string, std::string> PacketLoggingRaw::CSV_HEADERS = {
     {"PhyRxDropWithReason", "Time;SnifferNodeId;SnifferNodeX;SnifferNodeY;SnifferNodeZ;SnifferNodeType;PacketId;PacketSize;ReceiverMac;ReceiverNodeId;ReceiverNodeX;ReceiverNodeY;ReceiverNodeZ;ReceiverNodeType;TransmitterMac;TransmitterNodeId;TransmitterNodeX;TransmitterNodeY;TransmitterNodeZ;TransmitterNodeType;BSSID;BSSIDNodeId;BSSIDNodeX;BSSIDNodeY;BSSIDNodeZ;BSSIDNodeType;DestinationMac;DestinationNodeId;DestinationNodeX;DestinationNodeY;DestinationNodeZ;DestinationNodeType;SourceMac;SourceNodeId;SourceNodeX;SourceNodeY;SourceNodeZ;SourceNodeType;IsRetry;DropReason"}
 };
 
-PacketLoggingRaw::PacketLoggingRaw(const std::string& scenarioName, 
+PhySniffersRaw::PhySniffersRaw(const std::string& scenarioName, 
                            const NodeContainer& staNodes, 
                            const NodeContainer& apNodes)
     : m_scenarioName(scenarioName)
     , m_staNodes(staNodes)
     , m_apNodes(apNodes)
 {   
+    
+}
+
+void PhySniffersRaw::EnableLogging()
+{
     // Create path with timestamp
-    m_baseLogPath = "postprocessing/logs/" + scenarioName;
+    m_baseLogPath = "postprocessing/logs/" + m_scenarioName;
 
     // Create logging directory if it doesn't exist
     std::string cmd = "mkdir -p " + m_baseLogPath;
@@ -57,35 +62,32 @@ PacketLoggingRaw::PacketLoggingRaw(const std::string& scenarioName,
 
     // Write headers to all files after opening them
     WriteHeaders();
-}
 
-void PacketLoggingRaw::EnableLogging()
-{
     // Connect all logging callbacks
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyTxBegin",
-        MakeCallback(&PacketLoggingRaw::PhyTxRxBeginEndCallback, this));
+        MakeCallback(&PhySniffersRaw::PhyTxRxBeginEndCallback, this));
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyTxEnd",
-        MakeCallback(&PacketLoggingRaw::PhyTxRxBeginEndCallback, this));
+        MakeCallback(&PhySniffersRaw::PhyTxRxBeginEndCallback, this));
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyTxDropWithReason",
-        MakeCallback(&PacketLoggingRaw::PhyTxRxDropCallback, this));
+        MakeCallback(&PhySniffersRaw::PhyTxRxDropCallback, this));
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyRxBegin",
-        MakeCallback(&PacketLoggingRaw::PhyTxRxBeginEndCallback, this));
+        MakeCallback(&PhySniffersRaw::PhyTxRxBeginEndCallback, this));
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyRxEnd",
-        MakeCallback(&PacketLoggingRaw::PhyTxRxBeginEndCallback, this));
+        MakeCallback(&PhySniffersRaw::PhyTxRxBeginEndCallback, this));
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyRxDropWithReason",
-        MakeCallback(&PacketLoggingRaw::PhyTxRxDropCallback, this));
+        MakeCallback(&PhySniffersRaw::PhyTxRxDropCallback, this));
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/MonitorSnifferTx",
-        MakeCallback(&PacketLoggingRaw::MonitorSnifferTxCallback, this));
+        MakeCallback(&PhySniffersRaw::MonitorSnifferTxCallback, this));
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/MonitorSnifferRx",
-        MakeCallback(&PacketLoggingRaw::MonitorSnifferRxCallback, this));
+        MakeCallback(&PhySniffersRaw::MonitorSnifferRxCallback, this));
 }
 
-std::string PacketLoggingRaw::GetLogFilePath(const std::string& eventType) const
+std::string PhySniffersRaw::GetLogFilePath(const std::string& eventType) const
 {
     return m_baseLogPath + "/" + eventType + ".csv";
 }
 
-uint32_t PacketLoggingRaw::GetNodeIdFromMacAddress(const Mac48Address& addr) {
+uint32_t PhySniffersRaw::GetNodeIdFromMacAddress(const Mac48Address& addr) {
     // Check station nodes
     for (uint32_t i = 0; i < m_staNodes.GetN(); i++) {
         Ptr<WifiNetDevice> dev = m_staNodes.Get(i)->GetDevice(0)->GetObject<WifiNetDevice>();
@@ -104,7 +106,7 @@ uint32_t PacketLoggingRaw::GetNodeIdFromMacAddress(const Mac48Address& addr) {
     return -1; // Return -1 if not found
 }
 
-std::string PacketLoggingRaw::GetNodePos(uint32_t nodeId) {
+std::string PhySniffersRaw::GetNodePos(uint32_t nodeId) {
     // If nodeId is invalid, return placeholder values
     if (nodeId == (uint32_t)-1) {
         return "?;?;?;?";
@@ -158,7 +160,7 @@ std::string PacketLoggingRaw::GetNodePos(uint32_t nodeId) {
     return ss.str();
 }
 
-MacAddresses PacketLoggingRaw::ExtractMacAddresses(const WifiMacHeader& header) {
+MacAddresses PhySniffersRaw::ExtractMacAddresses(const WifiMacHeader& header) {
     MacAddresses macs;
 
     macs.receiver = header.GetAddr1();     // Always the receiver
@@ -196,7 +198,7 @@ MacAddresses PacketLoggingRaw::ExtractMacAddresses(const WifiMacHeader& header) 
     return macs;
 }
 
-std::string PacketLoggingRaw::PacketToCsv(Ptr<const Packet> packet){
+std::string PhySniffersRaw::PacketToCsv(Ptr<const Packet> packet){
 	// Extract MAC header for source/destination info
 	WifiMacHeader header;
 	packet->PeekHeader(header);
@@ -227,7 +229,7 @@ std::string PacketLoggingRaw::PacketToCsv(Ptr<const Packet> packet){
 	return ss.str();
 }
 
-void PacketLoggingRaw::MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet, 
+void PhySniffersRaw::MonitorSnifferRxCallback(std::string context, Ptr<const Packet> packet, 
     uint16_t channelFreqMhz, uint16_t channelNumber, 
     uint32_t rate, bool isShortPreamble, 
     WifiTxVector txVector,
@@ -280,7 +282,7 @@ void PacketLoggingRaw::MonitorSnifferRxCallback(std::string context, Ptr<const P
             << signalDbm << std::endl;
 }
 
-void PacketLoggingRaw::MonitorSnifferTxCallback(std::string context, Ptr<const Packet> packet, 
+void PhySniffersRaw::MonitorSnifferTxCallback(std::string context, Ptr<const Packet> packet, 
     uint16_t channelFreqMhz, uint16_t channelNumber,
     uint32_t rate, bool isShortPreamble,
     WifiTxVector txVector)
@@ -331,7 +333,7 @@ void PacketLoggingRaw::MonitorSnifferTxCallback(std::string context, Ptr<const P
             << txPowerLevel << std::endl;
 }
 
-void PacketLoggingRaw::PhyTxRxBeginEndCallback(std::string context, Ptr<const Packet> packet){
+void PhySniffersRaw::PhyTxRxBeginEndCallback(std::string context, Ptr<const Packet> packet){
     std::string::size_type traceSourcePos = context.find_last_of("/");
     std::string traceSource = context.substr(traceSourcePos + 1);
 
@@ -362,7 +364,7 @@ void PacketLoggingRaw::PhyTxRxBeginEndCallback(std::string context, Ptr<const Pa
 			<< PacketToCsv(packet) << std::endl;
 }
 
-void PacketLoggingRaw::PhyTxRxDropCallback(std::string context, Ptr<const Packet> packet, DropReason reason){
+void PhySniffersRaw::PhyTxRxDropCallback(std::string context, Ptr<const Packet> packet, DropReason reason){
     std::string::size_type traceSourcePos = context.find_last_of("/");
     std::string traceSource = context.substr(traceSourcePos + 1);
 
@@ -443,7 +445,7 @@ void PacketLoggingRaw::PhyTxRxDropCallback(std::string context, Ptr<const Packet
             << reasonString << std::endl;
 }
 
-void PacketLoggingRaw::WriteHeaders()
+void PhySniffersRaw::WriteHeaders()
 {
     for (auto it = m_logFiles.begin(); it != m_logFiles.end(); ++it) {
         const std::string& eventType = it->first;

@@ -12,8 +12,13 @@ PowerLoggingRaw::PowerLoggingRaw(const std::string &scenarioName,
                                  const NodeContainer &apNodes)
     : m_scenarioName(scenarioName), m_staNodes(staNodes), m_apNodes(apNodes)
 {
+    
+}
+
+void PowerLoggingRaw::EnableLogging()
+{
     // Create path with timestamp
-    std::string baseLogPath = "postprocessing/logs/" + scenarioName;
+    std::string baseLogPath = "postprocessing/logs/" + m_scenarioName;
 
     // Create logging directory if it doesn't exist
     std::string cmd = "mkdir -p " + baseLogPath;
@@ -33,10 +38,7 @@ PowerLoggingRaw::PowerLoggingRaw(const std::string &scenarioName,
     }
 
     WriteHeader();
-}
 
-void PowerLoggingRaw::EnableLogging()
-{
     Config::Connect(
         "/NodeList/*/DeviceList/0/$ns3::WifiNetDevice/Phy/State/State",
         MakeCallback(&PowerLoggingRaw::PhyStateChangeCallback, this));

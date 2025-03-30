@@ -4,15 +4,16 @@
 #include "ns3/core-module.h"
 #include "ns3/mobility-module.h"
 #include "ns3/wifi-module.h"
+#include "ns3/wifi-radio-energy-model.h"
 #include <string>
 #include <fstream>
 #include <map>
 
 using namespace ns3;
 
-class PowerLoggingStats {
+class PowerLoggingAgg {
 public:
-  PowerLoggingStats(const std::string& scenarioName,
+  PowerLoggingAgg(const std::string& scenarioName,
                     const NodeContainer& staNodes,
                     const NodeContainer& apNodes);
 
@@ -36,6 +37,20 @@ private:
     Time rx;
     Time ccaBusy;
     Time switching;
+    // Energy consumption (Joules) breakdown for each state.
+    double sleepEnergy;
+    double idleEnergy;
+    double txEnergy;
+    double rxEnergy;
+    double ccaBusyEnergy;
+    double switchingEnergy;
+    // The last total energy reading (Joules).
+    double lastEnergy;
+    // The current PHY state of the node.
+    WifiPhy::State currentState;
+    // Pointer to the energy model associated with the node.
+    Ptr<WifiRadioEnergyModel> energyModel;
+
     StateStats() 
       : nodeType("?"),
         sleep(Seconds(0)),
@@ -43,15 +58,27 @@ private:
         tx(Seconds(0)),
         rx(Seconds(0)),
         ccaBusy(Seconds(0)),
-        switching(Seconds(0))
+        switching(Seconds(0)),
+        sleepEnergy(0.0),
+        idleEnergy(0.0),
+        txEnergy(0.0),
+        rxEnergy(0.0),
+        ccaBusyEnergy(0.0),
+        switchingEnergy(0.0),
+        lastEnergy(0.0),
+        currentState(WifiPhy::State::SLEEP),
+        energyModel(0)
     {}
   };
 
-  // Map node Id -> state statistics.
+  // Map: node Id -> state statistics.
   std::map<uint32_t, StateStats> m_nodeStats;
 
+  // Callback to update time durations and current state.
   void PhyStateChangeCallback(std::string context, const Time start,
                               const Time duration, const WifiPhy::State state);
+
+  void TotalEnergyConsumptionCallback(std::string context, double oldValue, double newTotalEnergy);
 };
 
 #endif // POWER_LOGGING_STATS_H

@@ -37,6 +37,7 @@ private:
         
         // Add the initial position at time zero.
         if (m_index == 0 && currentTime == 0.0) {
+            std::cout << "[WaypointController] Scheduled waypoint 0 at time 0s." << std::endl;
             m_mobility->AddWaypoint(Waypoint(Seconds(currentTime), currentPos));
         }
         

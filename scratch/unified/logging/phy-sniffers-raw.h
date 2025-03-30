@@ -15,9 +15,9 @@
 
 using namespace ns3;
 
-class PacketLoggingRaw {
+class PhySniffersRaw {
 public:
-    PacketLoggingRaw(const std::string& scenarioName, const NodeContainer& staNodes, const NodeContainer& apNodes);
+    PhySniffersRaw(const std::string& scenarioName, const NodeContainer& staNodes, const NodeContainer& apNodes);
     MacAddresses ExtractMacAddresses(const WifiMacHeader& header);
     
     void EnableLogging();
