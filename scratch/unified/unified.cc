@@ -36,16 +36,16 @@
 #include "logging/mac-addresses.h"
 #include "logging/mac-stats.h"
 #include "logging/mac-stats.cc"
-#include "logging/packet-logging-raw.h"
-#include "logging/packet-logging-raw.cc"
-#include "logging/packet-logging-stats.h"
-#include "logging/packet-logging-stats.cc"
+#include "logging/phy-sniffers-raw.h"
+#include "logging/phy-sniffers-raw.cc"
+#include "logging/phy-sniffers-agg.h"
+#include "logging/phy-sniffers-agg.cc"
 #include "logging/position-logging.h"
 #include "logging/position-logging.cc"
 #include "logging/power-logging-raw.h"
 #include "logging/power-logging-raw.cc"
-#include "logging/power-logging-stats.h"
-#include "logging/power-logging-stats.cc"
+#include "logging/power-logging-agg.h"
+#include "logging/power-logging-agg.cc"
 #include "WaypointController.cc"
 #include <cstring>
 #include <string.h>
@@ -59,6 +59,9 @@
 #include "ns3/socket-factory.h"
 #include "ns3/basic-energy-source.h"
 #include "ns3/wifi-radio-energy-model.h"
+#include "ns3/flow-monitor.h"
+#include "ns3/flow-monitor-helper.h"
+#include "ns3/flow-monitor-module.h"
 
 NS_LOG_COMPONENT_DEFINE("unified");
 
@@ -92,8 +95,6 @@ int nodeYCount = 10;
 int nodeZCount = 1;
 double auvSpeed = 0.1; // m/s
 double auvZOffset = 0;
-
-std::string propagationModel = "air"; // Valid values are "air" and "underwater"
 
 Time stopTime = Hours(2);
 uint32_t simTime = 3600;
@@ -1260,13 +1261,10 @@ int main(int argc, char *argv[]) {
 	//LogComponentEnable("TCPSensorClient", LOG_ALL);
 	LogComponentEnable("WUSN", LOG_ALL);
 
+	std::string propagationModel = "air"; // Valid values are "air" and "underwater"
 	uint32_t channelWidth = 1;
 	std::string dataRate = "OfdmRate1_2MbpsBW1MHz";
 	std::string scenarioFolderPath = "unified";
-	std::string packetStatsConfig = "means";  // all/short/means
-	bool enablePositionLogging = false;
-	std::string powerLoggingConfig = "short";  // all/short
-	bool enableMacStats = false;
 	bool enableNodeSensorSleep = false;
 
 	double waterTemperature = 20;
@@ -1290,10 +1288,6 @@ int main(int argc, char *argv[]) {
 	cmd.AddValue("channelWidth", "1/2 MHz", channelWidth);
 	cmd.AddValue("dataRatePHY", "Data rate. Recommended: OfdmRate1_2MbpsBW1MHz, OfdmRate7_8MbpsBW2MHz", dataRate);
 	cmd.AddValue("scenarioFolderPath", "Path for the scenario folder (no trailing /)", scenarioFolderPath);
-	cmd.AddValue("packetStatsConfig", "Packet stats configuration (all/short/means)", packetStatsConfig);
-	cmd.AddValue("enablePositionLogging", "Enable position logging", enablePositionLogging);
-	cmd.AddValue("powerLoggingConfig", "Power logging configuration (all/short)", powerLoggingConfig);
-	cmd.AddValue("enableMacStats", "Enable MAC stats", enableMacStats);
 	cmd.AddValue("waterTemperature", "Water temperature in Celsius", waterTemperature);
 	cmd.AddValue("waterSalinity", "Water salinity in PSU", waterSalinity);
 	cmd.AddValue("enableNodeSensorSleep", "Allow the STAs to magically sense when their AP is nearby, improving their energy efficiency", enableNodeSensorSleep);
@@ -1347,7 +1341,7 @@ int main(int argc, char *argv[]) {
 
 
 	// **********************
-	//  mobility.
+	// MOBILITY
 	// **********************
 	MobilityHelper mobilitySta;
 	mobilitySta.SetMobilityModel("ns3::ConstantPositionMobilityModel");
@@ -1361,10 +1355,8 @@ int main(int argc, char *argv[]) {
 	mobilityAp.Install(wifiApNode);
 
     // Add position logging
-	PositionLogging posLogger(scenarioFolderPath, MilliSeconds(500));
-	if (enablePositionLogging) {
-		posLogger.EnableLogging();
-	}
+	//PositionLogging posLogger(scenarioFolderPath, MilliSeconds(500));
+	//posLogger.EnableLogging();
 
 	// Position all STAs in a zig-zag pattern
 	std::vector<Vector> auvWaypoints = {};
@@ -1516,16 +1508,10 @@ int main(int argc, char *argv[]) {
 	Config::ConnectWithoutContext(oss.str() + "RawSlot", MakeCallback(&RawSlotTrace));
 
 	// Install the packet sniffers
-	PacketLoggingRaw packetLogger(scenarioFolderPath, wifiStaNode, wifiApNode);
-	PacketLoggingStats packetLoggerStats(scenarioFolderPath, wifiStaNode, wifiApNode);
-	if (packetStatsConfig == "all") {
-		packetLogger.EnableLogging();
-	} else if (packetStatsConfig == "short" || packetStatsConfig == "means") {
-		packetLoggerStats.EnableLogging();
-	} else {
-		std::cout << "Invalid packet stats configuration specified" << std::endl;
-		return 1;
-	}
+	//PhySniffersRaw phySniffersRaw(scenarioFolderPath, wifiStaNode, wifiApNode);
+	//phySniffersRaw.EnableLogging();
+	//PhySniffersAgg phySniffersAgg(scenarioFolderPath, wifiStaNode, wifiApNode);
+	//phySniffersAgg.EnableLogging();
 	
 	/* Internet stack*/
 	InternetStackHelper stack;
@@ -1560,9 +1546,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	MacStats macStats = MacStats(scenarioFolderPath, wifiStaNode);
-	if (enableMacStats){
-		macStats.EnableLogging();
-	}
+	macStats.EnableLogging();
 	
 
 	Ipv4GlobalRoutingHelper::PopulateRoutingTables();
@@ -1609,23 +1593,17 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Install the power sniffers
-	PowerLoggingRaw powerLogger(scenarioFolderPath, wifiStaNode, wifiApNode);
-	PowerLoggingStats powerLoggerStats(scenarioFolderPath, wifiStaNode, wifiApNode);
-	if (powerLoggingConfig == "all") {
-		powerLogger.EnableLogging();
-	} else if (powerLoggingConfig == "short") {
-		powerLoggerStats.EnableLogging();
-	} else {
-		std::cout << "Invalid power logging configuration specified" << std::endl;
-		return 1;
-	}
+	//PowerLoggingRaw powerLogger(scenarioFolderPath, wifiStaNode, wifiApNode);
+	//powerLogger.EnableLogging();
+	PowerLoggingAgg powerLoggingAgg(scenarioFolderPath, wifiStaNode, wifiApNode);
+	powerLoggingAgg.EnableLogging();
 
 	if (enableNodeSensorSleep) {
 		ApplyNodeSensorSleep();
 	}
 
 	// ******************
-	//  SIMULATION
+	//  APPLICATIONS
 	// ******************
 
 	//configureTCPSensorServer();
@@ -1634,6 +1612,10 @@ int main(int argc, char *argv[]) {
 	//configureTCPSensorClients();
 	//configureBulkSendApplications(); // Handled by onSTAAssociated()
 	//configureUDPClientApplications(); // Handled by onSTAAssociated()
+
+	Ptr<FlowMonitor> flowMonitor;
+	FlowMonitorHelper flowHelper;
+	flowMonitor = flowHelper.InstallAll();
 
 
 	// Initialize progress bar
@@ -1648,19 +1630,16 @@ int main(int argc, char *argv[]) {
 	// END OF SIM CODE
 	// ******************
 
-	if (packetStatsConfig == "short") {
-		packetLoggerStats.DumpPacketRecordsToCsv();
-	} else if (packetStatsConfig == "means") {
-		packetLoggerStats.DumpPacketRecordsMeansToCsv();
-	}
+	//phySniffersAgg.DumpPacketRecordsToCsv();
+	//phySniffersAgg.DumpPacketRecordsMeansToCsv();
 
-	if (powerLoggingConfig == "short") {
-		powerLoggerStats.DumpPowerRecordsToCsv();
-	}
+	powerLoggingAgg.DumpPowerRecordsToCsv();
 
-	if (enableMacStats) {
-		macStats.DumpMacRecordsToCsv();
-	}
+	macStats.DumpMacRecordsToCsv();
+
+	std::string flowMonitorPath = "postprocessing/logs/" + scenarioFolderPath + "/FlowMonitor.xml";
+	std::cout << "Flow monitor results saved to " << flowMonitorPath << std::endl;
+	flowMonitor->SerializeToXmlFile(flowMonitorPath, false, false);
 
 	Simulator::Destroy();
 	std::cout << "Simulation ended gracefully" << std::endl;

@@ -34,7 +34,7 @@ private:
   NodeContainer m_staNodes;
 
   struct MacStateStats {
-    std::string nodeType; // STA/Ap
+    std::string nodeType; // STA/AP
     uint32_t associationAttempts;
     uint32_t deassociationAttempts;
     uint32_t totalTransmissionsDuringRAWSlot;

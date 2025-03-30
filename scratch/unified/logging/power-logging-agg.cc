@@ -1,4 +1,4 @@
-#include "power-logging-stats.h"
+#include "power-logging-agg.h"
 #include <sys/stat.h>
 #include <chrono>
 #include <iomanip>
@@ -8,7 +8,7 @@
 
 using namespace ns3;
 
-PowerLoggingStats::PowerLoggingStats(const std::string &scenarioName,
+PowerLoggingAgg::PowerLoggingAgg(const std::string &scenarioName,
                                      const NodeContainer &staNodes,
                                      const NodeContainer &apNodes)
     : m_scenarioName(scenarioName),
@@ -90,22 +90,22 @@ PowerLoggingStats::PowerLoggingStats(const std::string &scenarioName,
             }
             else
             {
-                std::cout << "[PowerLoggingStats] Energy model not found for node " << nodeId << std::endl;
+                std::cout << "[PowerLoggingAgg] Energy model not found for node " << nodeId << std::endl;
             }
         }
         else
         {
-            std::cout << "[PowerLoggingStats] WifiNetDevice not found for node " << nodeId << std::endl;
+            std::cout << "[PowerLoggingAgg] WifiNetDevice not found for node " << nodeId << std::endl;
         }
     }
 }
 
-void PowerLoggingStats::EnableLogging()
+void PowerLoggingAgg::EnableLogging()
 {
     // Connect the PHY state change callback to update time durations.
     Config::Connect(
         "/NodeList/*/DeviceList/0/$ns3::WifiNetDevice/Phy/State/State",
-        MakeCallback(&PowerLoggingStats::PhyStateChangeCallback, this));
+        MakeCallback(&PowerLoggingAgg::PhyStateChangeCallback, this));
 
     for (auto &entry : m_nodeStats)
     {
@@ -114,12 +114,12 @@ void PowerLoggingStats::EnableLogging()
         if (energyModel)
         {
             energyModel->TraceConnect("TotalEnergyConsumption", std::to_string(nodeId),
-                MakeCallback(&PowerLoggingStats::TotalEnergyConsumptionCallback, this));
+                MakeCallback(&PowerLoggingAgg::TotalEnergyConsumptionCallback, this));
         }
     }
 }
 
-void PowerLoggingStats::PhyStateChangeCallback(std::string context, const Time start,
+void PowerLoggingAgg::PhyStateChangeCallback(std::string context, const Time start,
                                                const Time duration, const WifiPhy::State state)
 {
     // Parse the node ID from the context string.
@@ -172,7 +172,7 @@ void PowerLoggingStats::PhyStateChangeCallback(std::string context, const Time s
     it->second.currentState = state;
 }
 
-void PowerLoggingStats::TotalEnergyConsumptionCallback(std::string context,
+void PowerLoggingAgg::TotalEnergyConsumptionCallback(std::string context,
                                                        double oldValue,
                                                        double newTotalEnergy)
 {
@@ -218,7 +218,7 @@ void PowerLoggingStats::TotalEnergyConsumptionCallback(std::string context,
     it->second.lastEnergy = newTotalEnergy;
 }
 
-void PowerLoggingStats::DumpPowerRecordsToCsv()
+void PowerLoggingAgg::DumpPowerRecordsToCsv()
 {
     m_csvFile.open(m_csvFilePath, std::ios::out | std::ios::trunc);
     if (!m_csvFile.is_open())

@@ -39,9 +39,9 @@ struct PacketRecord {
     {}
 };
 
-class PacketLoggingStats {
+class PhySniffersAgg {
 public:
-    PacketLoggingStats(const std::string& scenarioName, const NodeContainer& staNodes, const NodeContainer& apNodes);
+    PhySniffersAgg(const std::string& scenarioName, const NodeContainer& staNodes, const NodeContainer& apNodes);
     void EnableLogging();
 
     // Dump the packet records summary to the console.

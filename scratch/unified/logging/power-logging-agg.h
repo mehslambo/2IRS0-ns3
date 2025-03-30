@@ -11,9 +11,9 @@
 
 using namespace ns3;
 
-class PowerLoggingStats {
+class PowerLoggingAgg {
 public:
-  PowerLoggingStats(const std::string& scenarioName,
+  PowerLoggingAgg(const std::string& scenarioName,
                     const NodeContainer& staNodes,
                     const NodeContainer& apNodes);
 

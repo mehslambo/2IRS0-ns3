@@ -12,8 +12,13 @@ PositionLogging::PositionLogging(const std::string& scenarioName, Time interval)
     : m_scenarioName(scenarioName),
       m_loggingInterval(interval)
 {
+    
+}
+
+void PositionLogging::EnableLogging()
+{
     // Create path with timestamp
-    std::string baseLogPath = "postprocessing/logs/" + scenarioName;
+    std::string baseLogPath = "postprocessing/logs/" + m_scenarioName;
 
     // Create logging directory if it doesn't exist
     std::string cmd = "mkdir -p " + baseLogPath;
@@ -31,12 +36,9 @@ PositionLogging::PositionLogging(const std::string& scenarioName, Time interval)
     }
 
     WriteHeader();
-}
 
-void PositionLogging::EnableLogging()
-{
     // Start the periodic position check
-    Simulator::Schedule(m_loggingInterval, &PositionLogging::PeriodicPositionCheck, this);
+    Simulator::Schedule(Seconds(0), &PositionLogging::PeriodicPositionCheck, this);
 }
 
 void PositionLogging::PeriodicPositionCheck()
