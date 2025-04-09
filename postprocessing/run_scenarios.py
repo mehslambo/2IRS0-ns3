@@ -19,7 +19,7 @@ def get_scenario_commands():
     independent_vars = {
         "nodeXCount" : [1],
         "nodeXSpacing": [1],
-        "nodeXOffset": list(np.arange(0, 1.5, 0.05)) + list(np.arange(1.5, 1.9, 0.01)) + list(np.arange(1.9, 2.3, 0.05)),
+        "nodeXOffset": list(np.arange(0, 2.3, 0.015)),
         "nodeYCount" : [1],
         "nodeYSpacing": [1],
         "nodeYOffset": [0],
@@ -158,8 +158,11 @@ def main(stdscr):
     start_time = time.time()
     default_est = 60  # Fallback estimated remaining time.
 
-    # Toggle flag for filtering only in-progress commands.
-    filter_in_progress = False
+    # Replace the filter boolean with a filter mode.
+    # filter_options: None stands for ALL; otherwise filter by 'queued', 'running', 'success', or 'failed'.
+    filter_options = [None, "queued", "running", "success", "failed"]
+    filter_mode_index = 0
+    current_filter = filter_options[filter_mode_index]
 
     def start_command(index):
         """
@@ -252,23 +255,22 @@ def main(stdscr):
     def draw_side_panel():
         """
         Draw the side panel with command number and progress, plus a scrollbar.
-        If filtering is active, only in-progress (running) commands are shown.
+        The displayed commands are filtered based on the current_filter:
+          - If current_filter is None, show all commands;
+          - Otherwise, show only commands whose 'status' matches current_filter.
         """
         nonlocal side_scroll_offset, current_selected_index
         
         side_panel_win.erase()
-        # Determine the list of indices to display.
-        if filter_in_progress:
-            filtered = [i for i, s in enumerate(commands_state) if s['status'] == 'running']
-            # If current selection is not in the filtered list, select the first available.
+        # Determine the list of indices to display based on filter.
+        if current_filter is None:
+            filtered = list(range(total_commands))
+        else:
+            filtered = [i for i, s in enumerate(commands_state) if s['status'] == current_filter]
             if filtered:
                 if current_selected_index not in filtered:
                     current_selected_index = filtered[0]
-            else:
-                filtered = []
-        else:
-            filtered = list(range(total_commands))
-        
+
         total_display = len(filtered)
         visible_lines = main_panel_height - 2  # Interior without border.
         if filtered:
@@ -374,8 +376,9 @@ def main(stdscr):
                 f"Progress: {progress_bar} {finished_commands}/{total_commands} {eta_str} | Workers: {max_workers}")
         except curses.error:
             pass
-        help_text = (f"Keys: q=Quit | Up/Down=Select | p=Add worker | m=Remove worker | "
-                     f"f=Toggle filter ({'On' if filter_in_progress else 'Off'}) | Mouse=Select")
+        filter_label = "ALL" if current_filter is None else current_filter.upper()
+        help_text = (f"Keys: q=Quit | Up/Down=Select | a=Add worker | r=Remove worker | "
+                     f"f=Toggle filter ({filter_label}) | Mouse=Select")
         try:
             progress_win.addstr(1, 0, help_text[:width-1])
         except curses.error:
@@ -414,32 +417,34 @@ def main(stdscr):
             elif ch == curses.KEY_DOWN:
                 if current_selected_index < total_commands - 1:
                     current_selected_index += 1
-            elif ch == ord('p'):
+            # Switch add and remove worker keys to 'a' and 'r'
+            elif ch == ord('a'):
                 max_workers += 1
-            elif ch == ord('m'):
+            elif ch == ord('r'):
                 if max_workers > 1:
                     max_workers -= 1
             elif ch == ord('f'):
-                filter_in_progress = not filter_in_progress
-                if filter_in_progress:
-                    running_indices = [i for i, s in enumerate(commands_state) if s['status'] == 'running']
-                    if running_indices:
-                        if current_selected_index not in running_indices:
-                            current_selected_index = running_indices[0]
+                # Cycle through filter options: None (ALL), queued, running, success, failed.
+                filter_mode_index = (filter_mode_index + 1) % len(filter_options)
+                current_filter = filter_options[filter_mode_index]
+                if current_filter is not None:
+                    filtered = [i for i, s in enumerate(commands_state) if s['status'] == current_filter]
+                    if filtered and current_selected_index not in filtered:
+                        current_selected_index = filtered[0]
             elif ch == curses.KEY_MOUSE:
                 try:
                     _, mx, my, _, _ = curses.getmouse()
                     if mx < side_panel_width and my < main_panel_height:
-                        if filter_in_progress:
-                            filtered = [i for i, s in enumerate(commands_state) if s['status'] == 'running']
+                        if current_filter is None:
+                            clicked_index = my - 1 + side_scroll_offset
+                            if 0 <= clicked_index < total_commands:
+                                current_selected_index = clicked_index
+                        else:
+                            filtered = [i for i, s in enumerate(commands_state) if s['status'] == current_filter]
                             if filtered:
                                 clicked_index = my - 1
                                 if clicked_index < len(filtered):
                                     current_selected_index = filtered[clicked_index]
-                        else:
-                            clicked_index = my - 1 + side_scroll_offset
-                            if 0 <= clicked_index < total_commands:
-                                current_selected_index = clicked_index
                 except Exception:
                     pass
 
