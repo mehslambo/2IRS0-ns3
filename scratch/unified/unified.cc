@@ -54,6 +54,7 @@
 #include <iomanip>
 #include "ns3/bulk-send-helper.h"
 //#include "reconnecting-bulk-send-application.h"
+#include "bulk-send-application-with-local-port.h"
 #include "ns3/packet-sink-helper.h"
 #include "ns3/socket.h"
 #include "ns3/socket-factory.h"
@@ -489,7 +490,8 @@ void onSTAAssociated(int i) {
 	}
 
 	// Add a tiny offset to let the association process finish
-	Simulator::Schedule(Simulator::Now() + Seconds(0.0001), &configureBulkSendApplication, i);
+	configureBulkSendApplication(i);
+	//Simulator::Schedule(Simulator::Now() + Seconds(0.00001), &configureBulkSendApplication, i);
 	//configureTCPSensorClients();
 	//configureUDPClientApplication(i);
 }
@@ -934,15 +936,24 @@ void OnApplicationPacketSent(Ptr<const Packet> packet) {
 	std::cout << "Application packet sent"<< std::endl;
 }
 
+// Stores the next available port for each BulkSend on each station
+std::vector<uint16_t> staPortArray;
+
 void configureBulkSendApplication(int staId) {
-	if (!IsAssoc(staId))
+	if (!IsAssoc(staId)){
+		std::cout << "Failed to configure bulk send application on station " << staId << std::endl;
 		return;
-	std::cout << "Installing bulk send on station " << staId << std::endl;
+	}
+	std::cout << "Installing bulk send on station " << staId <<  " with port " << staPortArray[staId] << std::endl;
 	// Get the address of the station using the IPv4 interface we created
 	Ipv4Address staAddress = staNodeInterface.GetAddress(staId);
 			
 	// Create the BulkSend application
-	Ptr<BulkSendApplication> app = CreateObject<BulkSendApplication>();
+	Ptr<BulkSendApplicationWithLocalPort> app = CreateObject<BulkSendApplicationWithLocalPort>();
+	
+	// Set the port to the next available port
+	app->SetAttribute("LocalPort", UintegerValue(staPortArray[staId]));
+	staPortArray[staId]++;
 
 	app->SetAttribute("Remote", AddressValue(InetSocketAddress(apNodeInterface.GetAddress(0), 84)));
 	app->SetAttribute("MaxBytes", UintegerValue(0));  // Unlimited
@@ -1611,6 +1622,7 @@ int main(int argc, char *argv[]) {
 	//configureUDPServer();
 	//configureTCPSensorClients();
 	//configureBulkSendApplications(); // Handled by onSTAAssociated()
+	staPortArray.resize(wifiStaNode.GetN(), 1);
 	//configureUDPClientApplications(); // Handled by onSTAAssociated()
 
 	Ptr<FlowMonitor> flowMonitor;
