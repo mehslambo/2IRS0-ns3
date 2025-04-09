@@ -1433,8 +1433,8 @@ int main(int argc, char *argv[]) {
 	phy.Set("ChannelWidth", UintegerValue(channelWidth)); // Only 1/2; 4 is unstable and not documented; 8/16MHz is not implemented :(
 	phy.Set("EnergyDetectionThreshold", DoubleValue(-130.0));
 	phy.Set("CcaMode1Threshold", DoubleValue(-130.0));
-	phy.Set("TxGain", DoubleValue(14.0));
-	phy.Set("RxGain", DoubleValue(0.0));
+	phy.Set("TxGain", DoubleValue(1.0));
+	phy.Set("RxGain", DoubleValue(1.0));
 	phy.Set("TxPowerLevels", UintegerValue(1));
 	phy.Set("TxPowerEnd", DoubleValue(0.0));
 	phy.Set("TxPowerStart", DoubleValue(0.0));
@@ -1476,11 +1476,11 @@ int main(int argc, char *argv[]) {
 		"TIMSet", TIMValue (config.tim)
 	);
 
-	phy.Set("TxGain", DoubleValue(3.0));
-	phy.Set("RxGain", DoubleValue(3.0));
+	phy.Set("TxGain", DoubleValue(1.0));
+	phy.Set("RxGain", DoubleValue(1.0));
 	phy.Set("TxPowerLevels", UintegerValue(1));
-	phy.Set("TxPowerEnd", DoubleValue(30.0));
-	phy.Set("TxPowerStart", DoubleValue(30.0));
+	//phy.Set("TxPowerEnd", DoubleValue(30.0));
+	//phy.Set("TxPowerStart", DoubleValue(30.0));
 	phy.Set("RxNoiseFigure", DoubleValue(6.8));
 
 	apDevice = wifi.Install(phy, mac, wifiApNode);
