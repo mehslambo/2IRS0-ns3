@@ -15,28 +15,29 @@ env["LD_LIBRARY_PATH"] = os.path.expanduser('~/ns3/build') + ":" + env.get("LD_L
 def get_scenario_commands():
     scenario_name = "unified"
     
-    # Independent variables.
+    # Independent variables
     independent_vars = {
-        "nodeXCount" : list(np.arange(1, 26, 1)),
-        "nodeYCount" : list(np.arange(1, 26, 1)),
+        "nodeXCount" : [1],
+        "nodeXSpacing": [1],
+        "nodeXOffset": list(np.arange(0, 1.5, 0.05)) + list(np.arange(1.5, 1.9, 0.01)) + list(np.arange(1.9, 2.3, 0.05)),
+        "nodeYCount" : [1],
+        "nodeYSpacing": [1],
+        "nodeYOffset": [0],
         "nodeZCount": [1],
         "nodeZSpacing": [1],
-        "nodeZOffset": list(np.arange(0, -1.8, -0.1)),
+        "nodeZOffset": [0],
         "auvSpeed": [0],
         "propagationModel": ["underwater"],
-        "waterTemperature": [20],
-        "waterSalinity": [0.01],
+        "waterTemperature": list(np.arange(0, 30)),
+        "waterSalinity": [0.01, 0.5],
         "stopTime": [10*60],  # seconds
-        "channelWidth": [1],
-        "scenarioFolderPath": ["\"unified/buoy/run\""]
+        "channelWidth": [1, 2],
+        "scenarioFolderPath": ["\"unified/p2p/run\""]
     }
 
-    # Dependent variables defined via lambda functions.
+    # Dependent variables defined via lambda functions. 
+    # Each lambda receives a dict with the current independent variables.
     dependent_vars = {
-        "nodeXSpacing": lambda args: 1.8 / (args["nodeXCount"] - 1) if args["nodeXCount"] > 1 else 1,
-        "nodeXOffset": lambda args: -args["nodeXSpacing"] * (args["nodeXCount"] - 1) / 2,
-        "nodeYSpacing": lambda args: 1.8 / (args["nodeYCount"] - 1) if args["nodeYCount"] > 1 else 1,
-        "nodeYOffset": lambda args: -args["nodeYSpacing"] * (args["nodeYCount"] - 1) / 2,
         "dataRatePHY": lambda args: "OfdmRate1_2MbpsBW1MHz" if args["channelWidth"] == 1 else "OfdmRate7_8MbpsBW2MHz",
     }
 
@@ -140,7 +141,10 @@ def main(stdscr):
             'est_remaining': None,
             'proc': None,
             'log_file': None,
-            'exit_code': None
+            'exit_code': None,
+            'start_time': None,
+            'duration': None,
+            'finish_time': None,
         })
 
     # Concurrency settings.
@@ -153,7 +157,7 @@ def main(stdscr):
 
     start_time = time.time()
     default_est = 60  # Fallback estimated remaining time.
-    
+
     # Toggle flag for filtering only in-progress commands.
     filter_in_progress = False
 
@@ -176,6 +180,7 @@ def main(stdscr):
             if log_file:
                 log_file.write(spawn_msg)
                 log_file.flush()
+        state['start_time'] = time.time()
         proc = subprocess.Popen(
             cmd,
             shell=True,
@@ -203,22 +208,41 @@ def main(stdscr):
 
     def compute_overall_eta():
         """
-        Compute overall ETA by simulating the assignment of tasks across worker slots.
-        Uses the parsed estimated remaining times for running tasks and defaults otherwise.
+        Compute overall ETA based on:
+          - True execution durations for finished tasks,
+          - Current estimates (or computed remaining time) for running tasks,
+          - Estimated time for queued tasks.
+        Then simulate scheduling these tasks among worker slots.
         """
-        running_ests = [s['est_remaining'] for s in commands_state if s['status'] == 'running' and s['est_remaining'] is not None]
-        avg_est = sum(running_ests) / len(running_ests) if running_ests else default_est
+        current_time = time.time()
+        # Gather true execution times of finished commands.
+        finished_durations = [s['duration'] for s in commands_state 
+                              if s['status'] in ('success', 'failed') and s['duration'] is not None]
+        if finished_durations:
+            avg_finished = sum(finished_durations) / len(finished_durations)
+        else:
+            avg_finished = default_est
+
         tasks = []
         for s in commands_state:
             if s['status'] in ('success', 'failed'):
-                remaining = 0
+                rem = 0
             elif s['status'] == 'running':
-                remaining = s['est_remaining'] if s['est_remaining'] is not None else default_est
+                if s.get('est_remaining') is not None:
+                    rem = s['est_remaining']
+                elif s.get('start_time') is not None:
+                    # Estimate remaining by subtracting elapsed time from average finished duration.
+                    elapsed = current_time - s['start_time']
+                    rem = max(avg_finished - elapsed, 0)
+                else:
+                    rem = avg_finished
             elif s['status'] == 'queued':
-                remaining = avg_est
-            tasks.append(remaining)
+                rem = avg_finished
+            tasks.append(rem)
+        # Simulate assigning tasks to worker slots.
         slots = [0] * max_workers
         for t in tasks:
+            # Assign task to the worker with the minimum total time.
             min_slot = min(slots)
             slot_index = slots.index(min_slot)
             slots[slot_index] += t
@@ -256,7 +280,7 @@ def main(stdscr):
         else:
             current_filtered_index = 0
 
-        # Adjust scroll offset based on filtered list.
+        # Adjust scroll offset based on the filtered list.
         if current_filtered_index < side_scroll_offset:
             side_scroll_offset = current_filtered_index
         elif current_filtered_index >= side_scroll_offset + visible_lines:
@@ -464,6 +488,9 @@ def main(stdscr):
                                 pass
                 state['exit_code'] = proc.returncode
                 state['status'] = 'success' if proc.returncode == 0 else 'failed'
+                state['finish_time'] = time.time()
+                if state['start_time'] is not None:
+                    state['duration'] = state['finish_time'] - state['start_time']
                 finished_commands += 1
                 if enable_logging and state['log_file']:
                     try:
